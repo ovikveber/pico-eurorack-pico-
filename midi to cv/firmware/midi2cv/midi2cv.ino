@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // midi2cv.ino - Pico (RP2040) USB-MIDI -> 8x CV/Gate, minimal single DAC8568 version
 // FQBN: rp2040:rp2040:rpipico:usbstack=tinyusb
 //

@@ -71,9 +71,12 @@ rp2040:rp2040:rpipico:usbstack=tinyusb
 
 ## 协议
 
-- 固件和软件：[MIT](LICENSE)
-- 硬件设计文件：CERN-OHL-P v2
+- 固件和软件：[GPL-3.0-or-later](LICENSE)
+- 硬件设计文件：CERN-OHL-S-2.0（见 [CERN-OHL-S-2.0.txt](CERN-OHL-S-2.0.txt)）
 - 第三方库和参考资料保留各自协议
+
+早期版本曾以 MIT 发布，已经分发出去的旧版本仍可按 MIT 使用；从当前版本起改为
+GPL-3.0-or-later。
 
 `TB-303` 是 Roland 的商标。`pico303` 是独立复刻，仅供学习和 DIY，与 Roland 无关。
 
@@ -153,9 +156,12 @@ Forks and pull requests are welcome. See [CONTRIBUTING-贡献指南.md](CONTRIBU
 
 ## License
 
-- Firmware and software: [MIT](LICENSE)
-- Hardware design files: CERN-OHL-P v2
+- Firmware and software: [GPL-3.0-or-later](LICENSE)
+- Hardware design files: CERN-OHL-S-2.0 (see [CERN-OHL-S-2.0.txt](CERN-OHL-S-2.0.txt))
 - Third-party libraries and reference documents keep their own licenses
+
+Earlier versions were published under MIT. Copies distributed under MIT keep those rights;
+from the current version onward the project is GPL-3.0-or-later.
 
 `TB-303` is a trademark of Roland. `pico303` is an independent clone for study and DIY use,
 not affiliated with or endorsed by Roland.

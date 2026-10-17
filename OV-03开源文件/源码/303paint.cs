@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // 303paint.cs  —  OV-03 皮肤编辑器 (303paint)  v1.2
 // 编译: csc /target:winexe /win32icon:303paint.ico /out:303paint.exe /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll 303paint.cs
 using System;

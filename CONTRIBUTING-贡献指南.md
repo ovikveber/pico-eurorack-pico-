@@ -29,4 +29,5 @@ Mods are welcome. Please document:
 ## Licensing
 
 By contributing you agree that your changes are released under the license of the part of
-the repository you changed: MIT for firmware/software, CERN-OHL-P v2 for hardware designs.
+the repository you changed: GPL-3.0-or-later for firmware/software, CERN-OHL-S-2.0 for
+hardware designs.

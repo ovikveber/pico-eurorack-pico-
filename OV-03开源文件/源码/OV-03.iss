@@ -1,4 +1,5 @@
-﻿; ==================================================================
+﻿; SPDX-License-Identifier: GPL-3.0-or-later
+; ==================================================================
 ;  OV-03 安装脚本 (Inno Setup 7)
 ;  编译(绝对路径): "C:\Program Files\Inno Setup 7\ISCC.exe" "D:\dekstop mainstage\303seq\installer\OV-03.iss"
 ;  版本规则: v1.0 -> v1.1 ... v1.10 (小改) ; 大版本动前一位 -> v2.0

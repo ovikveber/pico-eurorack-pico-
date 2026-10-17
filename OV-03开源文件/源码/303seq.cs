@@ -1,4 +1,5 @@
-﻿// OV-03.cs  —  OV-03 (Pico TB-303 音序器 + 示波器/参数监视, 原生 Windows 程序)
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// OV-03.cs  —  OV-03 (Pico TB-303 音序器 + 示波器/参数监视, 原生 Windows 程序)
 // 版本: OV-03 v1.2
 // 编译: csc /target:winexe /out:OV-03.exe /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll 303seq.cs
 using System;

@@ -108,11 +108,14 @@ https://github.com/holystebroe/Syrebas
 
 ## 协议 / 致谢
 
-- 固件和 PC 软件：MIT
+- 固件和 PC 软件：GPL-3.0-or-later
+- 硬件设计文件：CERN-OHL-S-2.0
 - Syrebas 引擎：MIT，https://github.com/holystebroe/Syrebas
 - 音频 DAC 小板：CERN-OHL-S-2.0，https://github.com/Giuseppe499/KiCad-GY-PCM5102A
-- 硬件设计文件：CERN-OHL-P v2
 - 第三方文档保留各自版权
+
+早期版本曾以 MIT 发布，已经分发出去的旧版本仍可按 MIT 使用；从当前版本起改为
+GPL-3.0-or-later。
 
 ---
 
@@ -236,8 +239,11 @@ or build it from source.
 
 ## License / credits
 
-- Firmware and PC software: MIT
+- Firmware and PC software: GPL-3.0-or-later
+- Hardware design files: CERN-OHL-S-2.0
 - Syrebas engine: MIT, https://github.com/holystebroe/Syrebas
 - Audio DAC board: CERN-OHL-S-2.0, https://github.com/Giuseppe499/KiCad-GY-PCM5102A
-- Hardware design files: CERN-OHL-P v2
 - Third-party documents keep their own copyright
+
+Earlier versions were published under MIT. Copies distributed under MIT keep those rights;
+from the current version onward the project is GPL-3.0-or-later.

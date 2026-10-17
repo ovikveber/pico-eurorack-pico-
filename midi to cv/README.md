@@ -68,6 +68,10 @@ docs/wiring-table.txt          引脚和接口表
 docs/project-log.md            开发日志
 ```
 
+## 协议
+
+固件和软件：GPL-3.0-or-later。硬件设计文件：CERN-OHL-S-2.0。
+
 ---
 
 <a id="english"></a>
@@ -142,3 +146,7 @@ hardware/                      BOM, Gerber archive, board photos
 docs/wiring-table.txt          pin and connector table
 docs/project-log.md            development log
 ```
+
+## License
+
+Firmware and software: GPL-3.0-or-later. Hardware design files: CERN-OHL-S-2.0.

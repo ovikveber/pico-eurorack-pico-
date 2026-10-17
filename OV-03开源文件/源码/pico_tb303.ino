@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 /*
  * Pico TB-303 — 电路级仿真的 Roland TB-303 acid bass
- * 硬件: 新板 "rp2040 adc dac"（U1 = YD-RP2040），引脚与 pico_poly_vco 完全一致
+ * 硬件: ABrobot RP2350A（Pico 封装；仅支持 RP2350，不支持 RP2040）
  *
  *   I2S  -> PCM5102A   BCLK=GP13, WS=GP14, DIN=GP15   (SCK 不接)
  *   ADS8688 (SPI0)     SCLK=GP2, MOSI=GP3, MISO=GP4, CS=GP5
@@ -13,9 +14,10 @@
  *   AD5664(U8) 四路 DAC CV/Gate: SYNC#=GP9, SCLK=GP10, DIN=GP11 (经 74AHCT541 到 5V);
  *   输出 A=CVOUT B=GATEOUT C=ACCENTOUT D=FTENVOUT。pattern 默认不自动播, 按键/X1 才播。
  *
- * DSP 移植自 Open303 (Robin Schmidt, DSP 为 MIT 许可) 的电路级模型:
- *   BlendOscillator(saw/square) -> HP -> TeeBeeFilter(TB_303: 4级梯形+反馈HP)
- *   -> 抗混叠 -> AP/HP -> VCA。4x 过采样链路改为可配置 OS。
+ * DSP: Syrebas 电路级复刻引擎 (MIT, https://github.com/holystebroe/Syrebas):
+ *   连续锯齿核 + polyBLEP -> 4 级耦合二极管梯形滤波
+ *   (RK2 中点过采样, 级间 tanh 非线性, 动态反馈高通, 可自激) -> VCA。
+ *   过采样倍数 4/8/12/16 可配置。早期版本用过 Open303, 现已替换为 Syrebas。
  * 电路性质: 锯齿 VCO + tanh 软削波方波 + 4级梯形低通(反馈支路高通, 非线性, 自激)
  *           + 一次性滤波包络(env mod) + amp VEG + accent(力度>95) + slide(60ms, legato; DAW 用重叠音符=滑音)
  */
