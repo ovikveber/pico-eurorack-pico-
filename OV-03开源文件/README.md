@@ -95,7 +95,8 @@ https://github.com/holystebroe/Syrebas
 .NET WinForms 编译。`源码/OV-03.iss` 是 Inno Setup 安装脚本。
 
 `软件/OV-03_v1.2_Setup.exe` 约 104MB，超过 GitHub 单文件 100MB 限制，所以没有提交到
-仓库。需要安装包时请到 Release 下载，或者用源码自己编译。
+仓库。需要安装包时请到 [Release 303-v1.2](https://github.com/ovikveber/pico-eurorack-pico-/releases/tag/303-v1.2)
+下载，或者用源码自己编译。
 
 ## 注意
 
@@ -218,7 +219,8 @@ Hold BOOTSEL and drag `固件/OV-03_firmware_20261012_ac.uf2` onto the USB drive
 them with Visual Studio / .NET WinForms. `源码/OV-03.iss` is the Inno Setup script.
 
 `软件/OV-03_v1.2_Setup.exe` is about 104 MB, over the 100 MB GitHub file limit, so it is not
-committed. Download it from a release or build it from source.
+committed. Download it from the [303-v1.2 release](https://github.com/ovikveber/pico-eurorack-pico-/releases/tag/303-v1.2)
+or build it from source.
 
 ## Notes
 
