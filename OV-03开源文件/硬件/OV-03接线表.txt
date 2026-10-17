@@ -1,0 +1,214 @@
+================================================================
+OV-03（OV-303 板）接线表
+================================================================
+板子     ：OV-303 V1.2/V1.3（工程 "OV-03 v1.2.epanm" / Gerber "OV-03 v1.2.zip"）
+主控     ：U2 = Raspberry Pi Pico 2 模块（RP2350A，标准 40pin + 调试脚 SWDIO/SWCLK）
+依据网表 ：Netlist_Schematic1_2026-10-10.enet（本次全面重写，替换 2026-10-07 版）
+单位     ：本表由网表逐脚导出，再与固件 pico_tb303.ino 交叉核对
+⚠️ 说明：物理脚号按"Pico 2 标准 40pin 排针顺序"对应（已用 SPI/I2S/DAC/屏 多处交叉验证）。
+         若用非标准模块，请再对一遍排针丝印。
+⚠️ 改接线/改 GPIO 时，改完固件要同步改本表；本表是"代码引脚 ↔ 实际硬件"的唯一对照。
+⚠️ V1.3 = V1.2（仅音频插座焊盘加大），固件/接线完全通用。
+
+----------------------------------------------------------------
+一、板上主要器件（来自网表）
+----------------------------------------------------------------
+  U2    Raspberry Pi Pico 2（RP2350A 主控模块，43 脚封装）
+  U1    ADS8688IDBTR（28/38 脚 TSSOP，8 通道 16bit ADC，SPI；读 8 个旋钮）
+  U5    PCM5102 音频 DAC 小板（I2S 输入，模拟输出到 6.35 插座）【模块，非芯片】
+  TFT1  ST7789 1.54" 10pin SPI 屏
+  U3    LT1086CT-5（TO-220 5V 线性稳压：VCC → 5V）
+  U4    SPX3819M5-L-3-3（SOT-23-5 3.3V LDO：5V → 3V3；EN 接 5V 常开）
+  SW1   SS-12D10G12（SPDT 拨动开关，波形 WAVE → GP6）
+  SW2   SS-12D10G12（SPDT 拨动开关，更多共振 MORERES → GP7）
+  SW3   TS1103S（12×12 直插按键，BUTTON → GP8，低有效）
+  U8    AD5664BCPZ（LFCSP-10，四路 16bit SPI 电压 DAC；VREF=VREF5V）
+  U9    SN74AHCT541（TSSOP-20，8 路 3.3V→5V 电平转换，缓冲 DAC 的 SPI）
+  U10   ADR4550BRZ（SOIC-8，5V 精密基准；VIN=VCC → VOUT=VREF5V）
+  U6/U7 6.35 音频插座（U6=LOUT，U7=ROUT）
+  U11..U14 pj-301m 3.5mm 输出插座：U11=CVOUT / U12=GATEOUT / U13=ACCENTOUT / U14=FTENVOUT
+  R1..R8 RK09K11300DR 电位器（8 个旋钮，不是普通电阻！）
+  C1..C19 去耦/滤波电容
+  D1    SS14 肖特基（DC 输入防反接：DC1→D1→VCC）；DC1  DC 电源座
+
+----------------------------------------------------------------
+二、Pico(U2) 引脚总表  （物理脚 = 排针号）
+----------------------------------------------------------------
+物理脚  GPIO/名  网络            接到                        用途
+  1     GP0      (空)            —                           【可分配】
+  2     GP1      (空)            —                           【可分配】
+  3     GND      GND             —                           电源地
+  4     GP2      SCLK            U1_37  ADS8688 SCLK         ADS8688 SPI 时钟  【焊死】
+  5     GP3      SDI             U1_1   ADS8688 SDI(MOSI)    ADS8688 SPI 数据出【焊死】
+  6     GP4      SDO             U1_36  ADS8688 SDO(MISO)    ADS8688 SPI 数据入【焊死】
+  7     GP5      CS#             U1_38  ADS8688 CS#          ADS8688 片选      【焊死】
+  8     GND      GND             —                           电源地
+  9     GP6      WAVE            SW1_2  拨动开关公共端        波形开关(GND/3V3)【V1.2】
+ 10     GP7      MORERES         SW2_2  拨动开关公共端        自激/共振开关     【V1.2】
+ 11     GP8      BUTTON          SW3_3  按键(→GND)           用户按键 低有效   【V1.2】
+ 12     GP9      SYNC#(DAC)      U9_A3  74AHCT541            AD5664 片选(经缓冲)【V1.2】
+ 13     GND      GND             —                           电源地
+ 14     GP10     SCLK(DAC)       U9_A2  74AHCT541            AD5664 时钟(经缓冲)【V1.2】
+ 15     GP11     DIN(DAC)        U9_A1  74AHCT541            AD5664 数据(经缓冲)【V1.2】
+ 16     GP12     (空)            —                           【可分配】
+ 17     GP13     BCK(5102)       U5_5   PCM5102 BCK         I2S 位时钟 BCLK   【焊死】
+ 18     GND      GND             —                           电源地
+ 19     GP14     LRCK(5102)      U5_3   PCM5102 LRCK        I2S 左右时钟/WS   【焊死】
+ 20     GP15     DIN(5102)       U5_4   PCM5102 DIN         I2S 数据          【焊死】
+ 21     GP16     SDO(ST7789)     TFT1_5 屏 SDO/MISO         屏 SDO（固件里同时当 WS2812 灯脚）
+ 22     GP17     CSF(ST7789)     TFT1_9 屏 CSF              屏 快闪片选       【焊死】
+ 23     GND      GND             —                           电源地
+ 24     GP18     SCL(ST7789)     TFT1_3 屏 SCL              屏 SCK            【焊死】
+ 25     GP19     SDA(ST7789)     TFT1_4 屏 SDA              屏 MOSI/SDA（3线双向）【焊死】
+ 26     GP20     CS(ST7789)      TFT1_8 屏 CS               屏 CS             【焊死】
+ 27     GP21     DC(ST7789)      TFT1_7 屏 DC               屏 DC             【焊死】
+ 28     GND      GND             —                           电源地
+ 29     GP22     RST(ST7789)     TFT1_6 屏 RST              屏 RST            【焊死】
+ 30     RUN      (空)            —                           运行脚（复位）
+ 31     GP26     BL(ST7789)      TFT1_10 屏 BL              屏背光            【焊死】
+ 32     GP27     XSMT(5103)      U5_9   PCM5102 XSMT        音频静音(低=静音) 【焊死】
+ 33     GND_AGND GND             —                           模拟地
+ 34     GP28     (空)            —                           【可分配】
+ 35     ADC_VREF (空)            —                           ADC 基准脚（未用）
+ 36     3V3(OUT) (空)            —                           3.3V 输出（未引出到网络）
+ 37     3V3_EN   (空)            —                           3.3V 使能
+ 38     GND      GND             —                           电源地
+ 39     VSYS     5V              5V 电源                     5V 输入
+ 40     VBUS     (空)            —                           USB 5V（未接网络）
+ 41     SWDIO    (空)            —                           调试
+ 42     GND      GND             —                           调试地
+ 43     SWCLK    (空)            —                           调试
+  TP1..TP6  —     (空)            —                           测试点（未接网络）
+
+----------------------------------------------------------------
+三、按功能分组的对照（改代码看这里）
+----------------------------------------------------------------
+[ADS8688 旋钮 ADC]  SPI0  (U1 单独由 5V/3V3 供电)
+  GP2 → ADS8688 SCLK (U1_37)
+  GP3 → ADS8688 SDI  (U1_1)   数据 Pico→ADC
+  GP4 → ADS8688 SDO  (U1_36)  数据 ADC→Pico
+  GP5 → ADS8688 CS#  (U1_38)
+  U1_2 RST#/PD# → 3V3（不复位/不掉电）   U1_4 REFSEL# → GND（内部基准）
+  固件：#define ADS_SCLK 2 / ADS_MOSI 3 / ADS_MISO 4 / ADS_CS 5
+
+  8 个旋钮(R1..R8) → ADS8688 模拟通道（硬件固定）：
+    AIN0 = R1 旋钮1  TUNE      → U1_16   (POT_CH_TUNE 0)
+    AIN1 = R2 旋钮2  CUTOFF    → U1_18   (POT_CH_CUTOFF 1)
+    AIN2 = R3 旋钮3  RESONANCE → U1_21   (POT_CH_RES 2)
+    AIN3 = R4 旋钮4  ENV MOD   → U1_23   (POT_CH_ENVMOD 3)
+    AIN4 = R5 旋钮5  DECAY     → U1_25   (POT_CH_DECAY 4)
+    AIN5 = R6 旋钮6  ACCENT    → U1_27   (POT_CH_ACCENT 5)
+    AIN6 = R7 旋钮7  DIST      → U1_12   (POT_CH_DIST 6)
+    AIN7 = R8 旋钮8  (网络名"NONE"，未命名/预留) → U1_14 (POT_CH_COLOR 7, 可扩展)
+  注：每个电位器 1→GND，3→3V3，2(滑动端)→对应 AIN。
+
+[PCM5102 I2S 音频]  U5 小板
+  GP13 → PCM5102 BCK  (U5_5)  固件 I2S_BCLK 13
+  GP14 → PCM5102 LRCK (U5_3)  固件 I2S_WS/LRCK 14
+  GP15 → PCM5102 DIN  (U5_4)  固件 I2S_DIN 15
+  GP27 → PCM5102 XSMT (U5_9)  固件 PIN_XSMT 27（低=静音）
+  ★ U5_6 SCK → GND  ：本板不供主时钟，芯片靠内部 PLL 从 BCK 锁相；SCK 必须接地！
+  ★ U5_7 FLT → GND  ：普通滤波
+  ★ U5_8 DEMP → GND ：去加重关
+  ★ U5_10 FMT → GND ：I2S 格式
+  U5_1 VIN → 5V ；U5_11 A3V3 → 悬空（模块输出，勿灌电）；U5_12/14 AGND → GND
+  音频输出：U5_15 LOUT → U6 插座；U5_13 ROUT → U7 插座
+  ⚠️ 模块背面 4 个跳线(H1L..H4L / 对应 FLT/DEMP/XSMT/FMT 选 GND 或 DVDD)：
+     **全保持开路、不用焊**——主板已把 FLT/DEMP/FMT 接 GND、XSMT 接 GP27；
+     若焊到 DVDD 侧会和主板 GND 短路。
+
+[ST7789 屏 SPI]  TFT1
+  TFT1_1 GND → GND ；TFT1_2 VCC → 3V3
+  GP18 → 屏 SCL  (TFT1_3)   固件 PIN_SCK 18
+  GP19 → 屏 SDA  (TFT1_4)   固件 PIN_MOSI 19（本屏 3 线双向，回读也在此脚）
+  GP16 → 屏 SDO  (TFT1_5)   固件 PIN_SDO 16
+  GP22 → 屏 RST  (TFT1_6)   固件 PIN_RST 22
+  GP21 → 屏 DC   (TFT1_7)   固件 PIN_DC 21
+  GP20 → 屏 CS   (TFT1_8)   固件 PIN_CS 20
+  GP17 → 屏 CSF  (TFT1_9)   固件 PIN_CSF 17（屏上快闪字库片选；开机输出高=不选中）
+  GP26 → 屏 BL   (TFT1_10)  固件 PIN_BL 26（背光）
+  注：固件里 NEOPIXEL_PIN=16 与 PIN_SDO=16 冲突——板上无独立 WS2812，GP16 即屏 SDO。
+
+[V1.2 用户开关/按键]
+  GP6 ← SW1_2（WAVE）     ：SW1 在 GND/3V3 之间切换；固件 INPUT_PULLDOWN，高=方波/低=锯波
+  GP7 ← SW2_2（MORERES）  ：固件 INPUT_PULLDOWN，高=自激开
+  GP8 ← SW3_3（BUTTON）   ：按键→GND，低有效（播放/暂停/双击回头）
+  ⚠️ 新板按键只在 GP8；固件另支持老板 USER 键 GP23（GP23 本板无引出）。
+
+[V1.2 AD5664 四路 CV/Gate DAC]  SPI（经 74AHCT541 提到 5V）
+  GP9  → U9_A3 → U9_Y3 = $1N197 → U8_6 SYNC#   固件 PIN_DAC_SYNC 9（低有效片选）
+  GP10 → U9_A2 → U9_Y2 = $1N196 → U8_7 SCLK    固件 PIN_DAC_SCLK 10
+  GP11 → U9_A1 → U9_Y1 = $1N195 → U8_8 DIN     固件 PIN_DAC_DIN 11
+  U8_9 VDD → 5V ；U8_10 VREF → VREF5V ；U8_3/11 GND
+  U10 ADR4550：VIN → VCC ；VOUT → VREF5V（5V 基准）；U10_4 GND
+  24bit 字 = (0x3<<19)|(ch<<16)|code16 ；ch: 0=A 1=B 2=C 3=D
+  输出通道(U8) → 输出插座：
+    A(U8_1) CVOUT     → U11_3（pj-301m）
+    B(U8_2) GATEOUT   → U12_3
+    C(U8_4) ACCENTOUT → U13_3
+    D(U8_5) FTENVOUT  → U14_3
+  固件 define：#define PIN_WAVE 6 / PIN_MORERES 7 / PIN_USER 8 / PIN_DAC_SYNC 9 / PIN_DAC_SCLK 10 / PIN_DAC_DIN 11
+
+  U9 74AHCT541 其余脚：OE1#(1)/OE2#(19) → GND（常开），A4..A8/Y4..Y8 悬空或接 GND。
+
+----------------------------------------------------------------
+四、焊死（不可改，改了要动 PCB）vs 可分配
+----------------------------------------------------------------
+焊死/已占用：
+  GP2 GP3 GP4 GP5      ADS8688 SPI
+  GP6 GP7 GP8          V1.2 开关/按键
+  GP9 GP10 GP11        V1.2 AD5664 DAC SPI
+  GP13 GP14 GP15       PCM5102 I2S
+  GP16 GP17 GP18 GP19 GP20 GP21 GP22 GP26   屏（SDO/CSF/SCL/SDA/CS/DC/RST/BL）
+  GP27                 PCM5102 静音
+  → 以上 GPIO 想改功能必须飞线/改板。
+
+★ 剩余可自由分配的 GPIO（V1.2 后仅 4 个，均已引到排针，无外设）：
+  GP0  GP1  GP12  GP28
+  （RUN / 3V3 / 3V3_EN / VSYS / VBUS / ADC_VREF / SWDIO / SWCLK / GND 不可当 GPIO）
+  加功能（额外按键/LED/编码器/第二 SPI、I2C 等）优先用这些脚，改完同步更新本表 + 固件 define。
+  ⚠️ 注：旧 V1 板曾把 GP6~GP11 列为可分配；V1.2 起已被开关/按键/DAC 占用，不再空闲。
+
+----------------------------------------------------------------
+五、电源
+----------------------------------------------------------------
+  DC1(DC 座) → D1(SS14 防反接) → VCC(整流后的输入电压)
+  U3 LT1086CT-5：VIN=VCC → VOUT=**5V**（线性稳压）
+  U4 SPX3819M5-L-3-3：VIN=5V、EN=5V → VOUT=**3V3**
+  5V   → U1_9/U1_30(ADS AVDD)、U5_1(PCM5102 VIN)、U8_9(AD5664 VDD)、U9_20(VCC)
+  3V3  → U1_34(ADS DVDD)、U1_2(RST#)、屏 VCC、各电位器高端、拨动开关公共端
+  GND/AGND → 各器件地
+  MCU：VSYS(U2_39)=5V；供电 = DC 座 / USB。
+
+================================================================
+六、V1.2 硬件（2026-10-01 新板）
+================================================================
+与 V1 差异：新增 2 个拨动开关 + 1 个按键 + 一路 4 通道 SPI DAC（CV/Gate/Accent/FTEnv 输出）。
+（V1.3 = V1.2，仅音频插座焊盘加大，固件同。）
+
+新增器件（网表 "OV-303" 读出）：
+  U8  AD5664BCPZ-REEL7  ADI 四通道 16bit SPI 电压 DAC（外部基准 5V）
+  U10 ADR4550BRZ-R7     ADI 5V 精密基准（→ VREF5V）
+  U9  SN74AHCT541PWR    8 路电平转换（3.3V→5V，缓冲 DAC 的 SPI）
+  SW1 SS-12D10G12-G     SPDT 拨动开关（波形 WAVE）
+  SW2 SS-12D10G12-G     SPDT 拨动开关（更多共振 MORERES）
+  SW3 TS1103S-12x12x7.5DIP  直插按键（用户键 BUTTON）
+  U11..U14 pj-301m      4 路 3.5mm 输出插座：CVOUT/GATEOUT/ACCENTOUT/FTENVOUT
+
+新增 Pico(U2) 引脚：
+  物理脚  GPIO   网络          接到                    用途
+    9      GP6    WAVE          SW1_2（GND/3V3）        波形开关（锯波/方波）
+   10      GP7    MORERES       SW2_2（GND/3V3）        更多共振/自激开关
+   11      GP8    BUTTON        SW3_3 → GND（低有效）   用户按键
+   12      GP9    SYNC#(DAC)    U9_A3→Y3→U8 SYNC#      AD5664 片选（低有效）
+   14      GP10   SCLK(DAC)     U9_A2→Y2→U8 SCLK       AD5664 时钟
+   15      GP11   DIN(DAC)      U9_A1→Y1→U8 DIN        AD5664 数据
+
+  输出通道(U8)：A(U8_1)=CVOUT  B(U8_2)=GATEOUT  C(U8_4)=ACCENTOUT  D(U8_5)=FTENVOUT
+  VREF = 5V(ADR4550) → code 0..65535 → 0..~5V（量程/方向待上板标定）
+
+  注：2026-10-10 网表确认 SW3_3=BUTTON=GP8、SW3_4 未连接。
+
+================================================================
+（本表由网表自动 + 人工整理；若与实物/丝印不符以实物为准）
+================================================================

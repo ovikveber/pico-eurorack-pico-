@@ -1,0 +1,2513 @@
+/*!
+Theme Name: Cute Blog
+Theme URI: https://www.crimsonthemes.com/downloads/cute-blog
+Author: Crimson Themes
+Author URI: https://www.crimsonthemes.com/
+Description: Cute Blog is a clean and minimal blog theme.. This modern and bold WP theme is all you need for your food delivery business..The perfect destination for every professional  Food Delivery Service, Fast Food, travel blogger and traveler is here! Cute Blog was designed for all modern adventure traveller, all types of delivery, who need to create personal blog site , travel blogger with simple and creative features and effects to make readers feel the pleasure of reading blog posts and articles. If you are a blogger and traveller, then it’s a perfect choice for you if you don’t need to have any experiment to setup your Wordpress personal blog, it’s super simple and easy to setup, you will get high quality, responsive, well crafted blog out of the box to make writers only focuses on writing content, and it has great typography to make your fans and followers focus on every word you write.
+Version: 1.0.2
+Requires PHP: 5.6
+Tested up to: 6.5
+License: GNU General Public License v2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: cute-blog
+Tags: custom-background, custom-logo, custom-menu, featured-images, threaded-comments, translation-ready, one-column, two-columns, custom-header, blog, entertainment, portfolio
+
+This theme, like WordPress, is licensed under the GPL.
+Use it to make something cool, have fun, and share what you've learned.
+
+Cute Blog is based on Underscores https://underscores.me/, (C) 2012-2020 Automattic, Inc.
+Underscores is distributed under the terms of the GNU GPL v2 or later.
+
+Normalizing styles have been helped along thanks to the fine work of
+Nicolas Gallagher and Jonathan Neal https://necolas.github.io/normalize.css/
+*/
+
+/*--------------------------------------------------------------
+>>> TABLE OF CONTENTS:
+----------------------------------------------------------------
+# Generic
+	- Normalize
+	- Box sizing
+# Base
+	- Typography
+	- Elements
+	- Links
+	- Forms
+## Layouts
+# Components
+	- Navigation
+	- Posts and pages
+	- Comments
+	- Widgets
+	- Media
+	- Captions
+	- Galleries
+# plugins
+	- Jetpack infinite scroll
+# Utilities
+	- Accessibility
+	- Alignments
+
+--------------------------------------------------------------*/
+
+/*--------------------------------------------------------------
+# Generic
+--------------------------------------------------------------*/
+
+/* Normalize
+--------------------------------------------- */
+
+/*! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */
+
+/* Document
+	 ========================================================================== */
+
+/**
+ * 1. Correct the line height in all browsers.
+ * 2. Prevent adjustments of font size after orientation changes in iOS.
+ */
+html {
+	line-height: 1.15;
+	-webkit-text-size-adjust: 100%;
+}
+
+/* Sections
+	 ========================================================================== */
+
+/**
+ * Remove the margin in all browsers.
+ */
+body {
+	margin: 0;
+	font-family: 'Poppins', sans-serif;
+	font-weight: 400;
+}
+
+.boxed-layout #page,
+.frame-layout #page {
+    width: 90%;
+    max-width: 1600px;
+    margin: 0 auto;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.10);
+}
+
+.frame-layout #page {
+	margin: 50px auto;
+}
+
+/**
+ * Render the `main` element consistently in IE.
+ */
+main {
+	display: block;
+}
+
+/**
+ * Correct the font size and margin on `h1` elements within `section` and
+ * `article` contexts in Chrome, Firefox, and Safari.
+ */
+h1 {
+	font-size: 2em;
+	margin: 0.67em 0;
+}
+
+/* Grouping content
+	 ========================================================================== */
+
+/**
+ * 1. Add the correct box sizing in Firefox.
+ * 2. Show the overflow in Edge and IE.
+ */
+hr {
+	box-sizing: content-box;
+	height: 0;
+	overflow: visible;
+}
+
+/**
+ * 1. Correct the inheritance and scaling of font size in all browsers.
+ * 2. Correct the odd `em` font sizing in all browsers.
+ */
+pre {
+	font-family: monospace, monospace;
+	font-size: 1em;
+}
+
+/* Text-level semantics
+	 ========================================================================== */
+
+/**
+ * Remove the gray background on active links in IE 10.
+ */
+a {
+	background-color: transparent;
+}
+
+/**
+ * 1. Remove the bottom border in Chrome 57-
+ * 2. Add the correct text decoration in Chrome, Edge, IE, Opera, and Safari.
+ */
+abbr[title] {
+	border-bottom: none;
+	text-decoration: underline;
+	text-decoration: underline dotted;
+}
+
+/**
+ * Add the correct font weight in Chrome, Edge, and Safari.
+ */
+b,
+strong {
+	font-weight: bolder;
+}
+
+/**
+ * 1. Correct the inheritance and scaling of font size in all browsers.
+ * 2. Correct the odd `em` font sizing in all browsers.
+ */
+code,
+kbd,
+samp {
+	font-family: monospace, monospace;
+	font-size: 1em;
+}
+
+/**
+ * Add the correct font size in all browsers.
+ */
+small {
+	font-size: 80%;
+}
+
+/**
+ * Prevent `sub` and `sup` elements from affecting the line height in
+ * all browsers.
+ */
+sub,
+sup {
+	font-size: 75%;
+	line-height: 0;
+	position: relative;
+	vertical-align: baseline;
+}
+
+sub {
+	bottom: -0.25em;
+}
+
+sup {
+	top: -0.5em;
+}
+
+/* Embedded content
+	 ========================================================================== */
+
+/**
+ * Remove the border on images inside links in IE 10.
+ */
+img {
+	border-style: none;
+}
+
+/* Forms
+	 ========================================================================== */
+
+/**
+ * 1. Change the font styles in all browsers.
+ * 2. Remove the margin in Firefox and Safari.
+ */
+button,
+input,
+optgroup,
+select,
+textarea {
+	font-family: inherit;
+	font-size: 100%;
+	line-height: 1.15;
+	margin: 0;
+}
+
+/**
+ * Show the overflow in IE.
+ * 1. Show the overflow in Edge.
+ */
+button,
+input {
+	overflow: visible;
+}
+
+/**
+ * Remove the inheritance of text transform in Edge, Firefox, and IE.
+ * 1. Remove the inheritance of text transform in Firefox.
+ */
+button,
+select {
+	text-transform: none;
+}
+
+/**
+ * Correct the inability to style clickable types in iOS and Safari.
+ */
+button,
+[type="button"],
+[type="reset"],
+[type="submit"] {
+	-webkit-appearance: button;
+}
+
+button {
+	cursor: pointer;
+}
+
+/**
+ * Remove the inner border and padding in Firefox.
+ */
+button::-moz-focus-inner,
+[type="button"]::-moz-focus-inner,
+[type="reset"]::-moz-focus-inner,
+[type="submit"]::-moz-focus-inner {
+	border-style: none;
+	padding: 0;
+}
+
+/**
+ * Restore the focus styles unset by the previous rule.
+ */
+button:-moz-focusring,
+[type="button"]:-moz-focusring,
+[type="reset"]:-moz-focusring,
+[type="submit"]:-moz-focusring {
+	outline: 1px dotted ButtonText;
+}
+
+/**
+ * Correct the padding in Firefox.
+ */
+fieldset {
+	padding: 0.35em 0.75em 0.625em;
+}
+
+/**
+ * 1. Correct the text wrapping in Edge and IE.
+ * 2. Correct the color inheritance from `fieldset` elements in IE.
+ * 3. Remove the padding so developers are not caught out when they zero out
+ *		`fieldset` elements in all browsers.
+ */
+legend {
+	box-sizing: border-box;
+	color: inherit;
+	display: table;
+	max-width: 100%;
+	padding: 0;
+	white-space: normal;
+}
+
+/**
+ * Add the correct vertical alignment in Chrome, Firefox, and Opera.
+ */
+progress {
+	vertical-align: baseline;
+}
+
+/**
+ * Remove the default vertical scrollbar in IE 10+.
+ */
+textarea {
+	overflow: auto;
+}
+
+/**
+ * 1. Add the correct box sizing in IE 10.
+ * 2. Remove the padding in IE 10.
+ */
+[type="checkbox"],
+[type="radio"] {
+	box-sizing: border-box;
+	padding: 0;
+}
+
+/**
+ * Correct the cursor style of increment and decrement buttons in Chrome.
+ */
+[type="number"]::-webkit-inner-spin-button,
+[type="number"]::-webkit-outer-spin-button {
+	height: auto;
+}
+
+/**
+ * 1. Correct the odd appearance in Chrome and Safari.
+ * 2. Correct the outline style in Safari.
+ */
+[type="search"] {
+	-webkit-appearance: textfield;
+	outline-offset: -2px;
+}
+
+/**
+ * Remove the inner padding in Chrome and Safari on macOS.
+ */
+[type="search"]::-webkit-search-decoration {
+	-webkit-appearance: none;
+}
+
+/**
+ * 1. Correct the inability to style clickable types in iOS and Safari.
+ * 2. Change font properties to `inherit` in Safari.
+ */
+::-webkit-file-upload-button {
+	-webkit-appearance: button;
+	font: inherit;
+}
+
+/* Interactive
+	 ========================================================================== */
+
+/*
+ * Add the correct display in Edge, IE 10+, and Firefox.
+ */
+details {
+	display: block;
+}
+
+/*
+ * Add the correct display in all browsers.
+ */
+summary {
+	display: list-item;
+}
+
+/* Misc
+	 ========================================================================== */
+
+/**
+ * Add the correct display in IE 10+.
+ */
+template {
+	display: none;
+}
+
+/**
+ * Add the correct display in IE 10.
+ */
+[hidden] {
+	display: none;
+}
+
+/* Box sizing
+--------------------------------------------- */
+
+/* Inherit box-sizing to more easily change it's value on a component level.
+@link http://css-tricks.com/inheriting-box-sizing-probably-slightly-better-best-practice/ */
+*,
+*::before,
+*::after {
+	box-sizing: inherit;
+}
+
+html {
+	box-sizing: border-box;
+}
+
+/*--------------------------------------------------------------
+# Base
+--------------------------------------------------------------*/
+
+/* Typography
+--------------------------------------------- */
+body,
+button,
+input,
+select,
+optgroup,
+textarea {
+	color: #565859;
+	font-size: 14px;
+	line-height: 28px;
+	letter-spacing: 0.7px;
+    word-wrap: break-word;
+}
+
+h1 {
+	font-size: 52px;
+}
+
+h2 {
+	font-size: 42px;
+}
+
+h3 {
+	font-size: 26px;
+}
+
+h4 {
+	font-size: 20px;
+}
+
+h5 {
+	font-size: 18px;
+}
+
+h6 {
+	font-size: 14px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	clear: both;
+	font-family: "Rajdhani", sans-serif;
+	color: #121418;
+	margin: 16px 0;
+	line-height: 1.2;
+	font-weight: 700;
+}
+
+p {
+	margin-bottom: 1.5em;
+}
+
+dfn,
+cite,
+em,
+i {
+	font-style: italic;
+}
+
+blockquote {
+	margin: 0 1.5em;
+}
+
+address {
+	margin: 0 0 1.5em;
+}
+
+pre {
+	background: #eee;
+	font-family: "Courier 10 Pitch", courier, monospace;
+	line-height: 1.6;
+	margin-bottom: 1.6em;
+	max-width: 100%;
+	overflow: auto;
+	padding: 1.6em;
+}
+
+code,
+kbd,
+tt,
+var {
+	font-family: monaco, consolas, "Andale Mono", "DejaVu Sans Mono", monospace;
+}
+
+abbr,
+acronym {
+	border-bottom: 1px dotted #666;
+	cursor: help;
+}
+
+mark,
+ins {
+	background: #fff9c0;
+}
+
+big {
+	font-size: 125%;
+}
+
+/* Elements
+--------------------------------------------- */
+body {
+	background: #f8f3f4;
+	overflow-x: hidden;
+}
+
+hr {
+	background-color: #ccc;
+	border: 0;
+	height: 1px;
+	margin-bottom: 1.5em;
+}
+
+ul,
+ol {
+	margin: 0 0 1.5em 3em;
+}
+
+ul {
+	list-style: disc;
+}
+
+ol {
+	list-style: decimal;
+}
+
+li > ul,
+li > ol {
+	margin-bottom: 0;
+	margin-left: 1.5em;
+}
+
+dt {
+	font-weight: 700;
+}
+
+dd {
+	margin: 0 1.5em 1.5em;
+}
+
+/* Make sure embeds and iframes fit their containers. */
+embed,
+iframe,
+object {
+	max-width: 100%;
+}
+
+img {
+	height: auto;
+	max-width: 100%;
+	vertical-align: middle;
+}
+
+figure {
+	margin: 1em 0;
+}
+
+table {
+	margin: 0 0 1.5em;
+	width: 100%;
+}
+
+/* Links
+--------------------------------------------- */
+a {
+	color: #4C4C4C;
+	text-decoration: underline;
+}
+
+a:hover,
+a:focus,
+a:active {
+	color: #f67280;
+}
+
+a:focus {
+	outline: thin dotted;
+}
+
+
+/* Forms
+--------------------------------------------- */
+button,
+input[type="button"],
+input[type="reset"],
+input[type="submit"] {
+	color: #666;
+	display: inline-block;
+    font-size: 16px;
+    font-weight: 500;
+    padding: 10px 35px;
+    position: relative;
+    background-color: #e9ecef;
+    border: 2px solid #e9ecef;
+    text-decoration: none;
+    text-transform: uppercase;
+    z-index: 1;
+    border-radius: 5px;
+    -webkit-transition: all 0.3s ease-in-out;
+    -moz-transition: all 0.3s ease-in-out;
+    -ms-transition: all 0.3s ease-in-out;
+    -o-transition: all 0.3s ease-in-out;
+    transition: all 0.3s ease-in-out;
+}
+
+button:hover,
+input[type="button"]:hover,
+input[type="reset"]:hover,
+input[type="submit"]:hover {
+	color: #fff;
+    background-color: #da126a;
+    border-color: #da126a;
+    text-decoration: none;
+}
+
+button:active,
+button:focus,
+input[type="button"]:active,
+input[type="button"]:focus,
+input[type="reset"]:active,
+input[type="reset"]:focus,
+input[type="submit"]:active,
+input[type="submit"]:focus {
+	border-color: #aaa #bbb #bbb;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="url"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+input[type="tel"],
+input[type="range"],
+input[type="date"],
+input[type="month"],
+input[type="week"],
+input[type="time"],
+input[type="datetime"],
+input[type="datetime-local"],
+input[type="color"],
+textarea {
+	border: 1px solid #262525;
+    background-color: transparent;
+    padding: 12px;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="url"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+input[type="number"]:focus,
+input[type="tel"]:focus,
+input[type="range"]:focus,
+input[type="date"]:focus,
+input[type="month"]:focus,
+input[type="week"]:focus,
+input[type="time"]:focus,
+input[type="datetime"]:focus,
+input[type="datetime-local"]:focus,
+input[type="color"]:focus,
+textarea:focus {
+	color: #111;
+}
+
+select {
+	border: 1px solid #ccc;
+}
+
+textarea {
+	width: 100%;
+}
+
+/*--------------------------------------------------------------
+# Layouts
+--------------------------------------------------------------*/
+
+/*--------------------------------------------------------------
+# Components
+--------------------------------------------------------------*/
+
+/* Navigation
+--------------------------------------------- */
+
+ul li a {
+	text-decoration: none;
+}
+.main-navigation {
+	display: block;
+	width: 100%;
+}
+
+.main-navigation ul {
+	display: none;
+	list-style: none;
+	margin: 0;
+	padding-left: 0;
+}
+
+.main-navigation ul ul {
+	box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
+	float: left;
+	position: absolute;
+	top: 100%;
+	left: -999em;
+	z-index: 99999;
+}
+
+.main-navigation ul ul ul {
+	left: -999em;
+	top: 0;
+}
+
+.main-navigation ul ul li:hover > ul,
+.main-navigation ul ul li.focus > ul {
+	display: block;
+	left: auto;
+}
+
+.main-navigation ul ul a {
+	width: 200px;
+}
+
+.main-navigation ul li:hover > ul,
+.main-navigation ul li.focus > ul {
+	left: auto;
+}
+
+.main-navigation li {
+	position: relative;
+}
+
+.main-navigation a {
+	display: block;
+	text-decoration: none;
+}
+
+/* Small menu. */
+.menu-toggle {
+	display: block;
+}
+
+@media screen and (min-width: 37.5em) {
+
+	.menu-toggle {
+		display: none;
+	}
+
+	.main-navigation ul {
+		display: flex;
+	}
+}
+
+.site-main .comment-navigation,
+.site-main
+.posts-navigation,
+.site-main
+.post-navigation {
+	margin: 0 0 1.5em;
+}
+
+nav.navigation.post-navigation {
+    background-color: #262525;
+    padding: 20px;
+    margin: 15px 0;
+}
+nav.navigation.post-navigation a {
+    text-decoration: none;
+    color: #fff;
+}
+nav.navigation.post-navigation a:hover,
+nav.navigation.post-navigation a:focus {
+    color: #da126a;
+}
+
+.comment-navigation .nav-links,
+.posts-navigation .nav-links,
+.post-navigation .nav-links {
+	display: flex;
+}
+
+.comment-navigation .nav-previous,
+.posts-navigation .nav-previous,
+.post-navigation .nav-previous {
+	flex: 1 0 50%;
+}
+
+.comment-navigation .nav-next,
+.posts-navigation .nav-next,
+.post-navigation .nav-next {
+	text-align: end;
+	flex: 1 0 50%;
+}
+.comments-link {
+    padding: 0 15px;
+}
+#comments {
+    margin-top: 50px;
+}
+
+/* Posts and pages
+--------------------------------------------- */
+.sticky {
+	display: block;
+}
+
+.post,
+.page {
+	margin: 0 0 1.5em;
+}
+
+.updated:not(.published) {
+	display: none;
+}
+
+.page-content,
+.entry-content,
+.entry-summary {
+	margin: 1.5em 0 0;
+}
+
+.page-links {
+	clear: both;
+	margin: 0 0 1.5em;
+}
+
+.error404 #primary,
+.error404 #primary {
+    width: 100%;
+    float: none;
+    padding: 0;
+    text-align: center;
+}
+
+.error-404.not-found .title {
+    font-size: 150px;
+    font-weight: bold;
+    line-height: 1;
+    color: #d06a22;
+}
+
+.error-404.not-found input.search-field {
+    min-width: 300px;
+    display: block;
+    margin: 0 auto 20px;
+}
+
+.no-sidebar #primary {
+    width: 100%;
+    float: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.no-sidebar #secondary {
+    display: none;
+}
+
+#primary {
+    margin-bottom: 50px;
+}
+
+/* Comments
+--------------------------------------------- */
+.comment-content {
+    background-color: #fff;
+    padding: 10px 25px;
+    display: block;
+    margin-top: 15px;
+}
+.comment-content a {
+	word-wrap: break-word;
+}
+
+.bypostauthor {
+	display: block;
+}
+
+/* Widgets
+--------------------------------------------- */
+.widget {
+	margin: 0 0 1.5em;
+}
+
+.widget:last-child {
+	margin-bottom: 0;
+}
+
+.widget select {
+	max-width: 100%;
+}
+
+.widget li {
+    margin-bottom: 15px;
+    line-height: 1.35;
+}
+
+/* Media
+--------------------------------------------- */
+.page-content .wp-smiley,
+.entry-content .wp-smiley,
+.comment-content .wp-smiley {
+	border: none;
+	margin-bottom: 0;
+	margin-top: 0;
+	padding: 0;
+}
+
+/* Make sure logo link wraps around logo image. */
+.custom-logo-link {
+	display: inline-block;
+}
+
+/* Captions
+--------------------------------------------- */
+.wp-caption {
+	margin-bottom: 1.5em;
+	max-width: 100%;
+}
+
+.wp-caption img[class*="wp-image-"] {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.wp-caption .wp-caption-text {
+	margin: 0.8075em 0;
+}
+
+.wp-caption-text {
+	text-align: center;
+}
+
+/* Galleries
+--------------------------------------------- */
+.gallery {
+	margin-bottom: 1.5em;
+	display: grid;
+	grid-gap: 1.5em;
+}
+
+.gallery-item {
+	display: inline-block;
+	text-align: center;
+	width: 100%;
+}
+
+.gallery-columns-2 {
+	grid-template-columns: repeat(2, 1fr);
+}
+
+.gallery-columns-3 {
+	grid-template-columns: repeat(3, 1fr);
+}
+
+.gallery-columns-4 {
+	grid-template-columns: repeat(4, 1fr);
+}
+
+.gallery-columns-5 {
+	grid-template-columns: repeat(5, 1fr);
+}
+
+.gallery-columns-6 {
+	grid-template-columns: repeat(6, 1fr);
+}
+
+.gallery-columns-7 {
+	grid-template-columns: repeat(7, 1fr);
+}
+
+.gallery-columns-8 {
+	grid-template-columns: repeat(8, 1fr);
+}
+
+.gallery-columns-9 {
+	grid-template-columns: repeat(9, 1fr);
+}
+
+.gallery-caption {
+	display: block;
+}
+
+/*--------------------------------------------------------------
+# Plugins
+--------------------------------------------------------------*/
+
+/* Jetpack infinite scroll
+--------------------------------------------- */
+
+/* Hide the Posts Navigation and the Footer when Infinite Scroll is in use. */
+.infinite-scroll .posts-navigation,
+.infinite-scroll.neverending .site-footer {
+	display: none;
+}
+
+/* Re-display the Theme Footer when Infinite Scroll has reached its end. */
+.infinity-end.neverending .site-footer {
+	display: block;
+}
+
+/*--------------------------------------------------------------
+# Utilities
+--------------------------------------------------------------*/
+
+/* Accessibility
+--------------------------------------------- */
+
+/* Text meant only for screen readers. */
+.screen-reader-text {
+	border: 0;
+	clip: rect(1px, 1px, 1px, 1px);
+	clip-path: inset(50%);
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	padding: 0;
+	position: absolute !important;
+	width: 1px;
+	word-wrap: normal !important;
+}
+
+.screen-reader-text:focus {
+	background-color: #f1f1f1;
+	border-radius: 3px;
+	box-shadow: 0 0 2px 2px rgba(0, 0, 0, 0.6);
+	clip: auto !important;
+	clip-path: none;
+	color: #21759b;
+	display: block;
+	font-size: 0.875rem;
+	font-weight: 700;
+	height: auto;
+	left: 5px;
+	line-height: normal;
+	padding: 15px 23px 14px;
+	text-decoration: none;
+	top: 5px;
+	width: auto;
+	z-index: 100000;
+}
+
+/* Do not show the outline on the skip link target. */
+#primary[tabindex="-1"]:focus {
+	outline: 0;
+}
+
+/* Alignments
+--------------------------------------------- */
+.alignleft {
+
+	/*rtl:ignore*/
+	float: left;
+
+	/*rtl:ignore*/
+	margin-right: 1.5em;
+	margin-bottom: 1.5em;
+}
+
+.alignright {
+
+	/*rtl:ignore*/
+	float: right;
+
+	/*rtl:ignore*/
+	margin-left: 1.5em;
+	margin-bottom: 1.5em;
+}
+
+.aligncenter {
+	clear: both;
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-bottom: 1.5em;
+}
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-left: 15px;
+    padding-right: 15px;
+}
+.clear {
+	clear: both;
+}
+.container:before,
+.container:after,
+.navigation:before,
+.navigation:after,
+.clear:before,
+.clear:after {
+    display: table;
+    content: "";
+    clear: both;
+}
+.entry-title a,
+.entry-meta a,
+span.cat-links a {
+	text-decoration: none;
+}
+.entry-title {
+    margin: 0 0 10px;
+    text-transform: capitalize;
+    font-size: 30px;
+    letter-spacing: 0;
+    line-height: 30px;
+    font-weight: 700;
+}
+.widget-title {
+    font-size: 24px;
+}
+#secondary h1, 
+#secondary h2, 
+#secondary h3, 
+#secondary h4, 
+#secondary h5, 
+#secondary h6 {
+    margin: 0;
+}
+#secondary h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #000;
+    letter-spacing: 0.01em;
+}
+.block-gap {
+	padding: 60px 0;
+}
+.column-1 {
+	max-width: 100%;
+	margin-left: 0;
+	margin-right: 0;
+}
+.column-1 article, 
+.column-2 article, 
+.column-3 article, 
+.column-4 article,
+.column-5 article,
+.column-6 article {
+	margin-bottom: 30px;
+	width: 100%;
+}
+.column-1 article:last-child, 
+.column-2 article:last-child, 
+.column-3 article:last-child, 
+.column-4 article:last-child,
+.column-5 article:last-child,
+.column-6 article:last-child {
+	margin-bottom: 0;
+}
+.archive-blog .entry-meta {
+    border-top: 1px solid #e4e4e4;
+    margin: 30px 0 0;
+    padding: 30px 0 0;
+}
+.post-wrapper {
+	background-color: #fff;
+    box-shadow: 0px 0 2px 0 rgba(0,0,0,0.1), 0 0 0px 0 rgba(0,0,0,0.1), 0 2px 2px 0 rgba(0,0,0,0.18);
+    margin: 2px 2px 4px 2px;
+    position: relative;
+    transition: 0.25s ease-out;
+}
+.post-wrapper:before {
+    content: "";
+    position: absolute;
+    width: calc(100% + 2px);
+    height: 3px;
+    top: -1px;
+    left: -1px;
+    transform: translate3d(0,0,0);
+    z-index: 2;
+    background-color: #da126a;
+}
+.post-wrapper:hover {
+    transform: translateY(-5px);
+}
+.post-wrapper .entry-container {
+    padding: 30px;
+}
+.bottom-wrapper {
+    position: relative;
+}
+.archive-blog .has-post-thumbnail .post-wrapper .entry-meta {
+    position: absolute;
+    top: 0px;
+    left: 0;
+    display: table-cell;
+    text-align: center;
+    vertical-align: top;
+    z-index: 12;
+}
+.archive-blog .post-wrapper .entry-meta {
+    margin: 0 0 15px 0;
+    border:none;
+    padding: 8px 11px;
+    border-radius: 0;
+    background-color: #2d2d2d;
+}
+.archive-blog .post-wrapper .entry-meta a {
+    background-color: #2d2d2d;
+    border:none;
+    color: #fff;
+}
+.entry-meta a {
+    text-transform: capitalize;
+    font-size: 14px;
+    font-weight: 500;
+    background-color: #e9ecef;
+    margin-right: 10px;
+    padding: 6px 13px;
+    border-radius: 5px;
+    color: #666;
+}
+.archive-blog .entry-meta > span,
+.single .entry-meta > span {
+   position: relative;
+}
+.archive-blog .entry-meta > span.byline:after,
+.single .entry-meta > span.byline:after {
+    content: "";
+    background-color: #041527;
+    content: '';
+    height: 4px;
+    right: -18px;
+    position: absolute;
+    top: 4px;
+    bottom: 0;
+    margin: auto;
+    width: 4px;
+    z-index: 1;
+    opacity: 1;
+    visibility: visible;
+    display: none;
+}
+.byline,
+span.posted-on {
+    visibility: hidden;
+}
+.byline .author.vcard,
+span.posted-on a  {
+    opacity: 1;
+    visibility: visible;
+}
+.archive-blog span.author.vcard,
+.single span.author.vcard {
+    margin-left: -20px;
+}
+.archive-blog span.posted-on,
+.single span.posted-on {
+    margin-left: -80px;
+}
+#commentform p {
+    margin-bottom: 21px;
+}
+#respond label {
+    margin-bottom: 15px;
+    display: block;
+}
+#respond input[type="text"], 
+#respond input[type="email"], 
+#respond input[type="url"] {
+    width: 100%;
+}
+#commentform .comment-form-cookies-consent {
+    clear: both;
+    display: inline-block;
+    width: 100%;
+    margin-top: 25px;
+    margin-bottom: 0;
+}
+#respond input[type="checkbox"] {
+    min-height: auto;
+    height: auto;
+    float: left;
+    margin-right: 10px;
+    width: auto;
+}
+#respond .comment-form-cookies-consent label {
+    display: table;
+    margin: 0;
+    line-height: 1;
+}
+#commentform p.form-submit {
+    margin: 21px 0 0;
+}
+.single .entry-meta {
+    margin: 20px 0;
+}
+.single .post-wrapper .entry-footer {
+    padding-top: 15px;
+}
+.reply {
+    text-align: right;
+}
+.reply a {
+	color: #666;
+	text-decoration: none;
+	background-color: #e9ecef;
+    padding: 6px 13px;
+    border-radius: 5px;
+}
+.reply a:hover,
+.reply a:focus {
+	color: #fff;
+	background-color: #D85726;
+}
+
+/*--------------------------------------------------------------
+5.2 Menus
+--------------------------------------------------------------*/
+#masthead {
+    position: relative;
+    width: 100%;
+    z-index: 3000;
+    background-color: #fff;
+    padding: 15px 0;
+    border-bottom: 2px solid rgb(34 34 34 / 10%);
+    -webkit-transition: all 0.3s ease-in-out;
+    -moz-transition: all 0.3s ease-in-out;
+    -ms-transition: all 0.3s ease-in-out;
+    -o-transition: all 0.3s ease-in-out;
+    transition: all 0.3s ease-in-out;
+}
+.site-branding img {
+    max-height: 75px;
+    width: auto;
+    -webkit-transition: all 0.3s ease-in-out;
+    -moz-transition: all 0.3s ease-in-out;
+    -ms-transition: all 0.3s ease-in-out;
+    -o-transition: all 0.3s ease-in-out;
+    transition: all 0.3s ease-in-out;
+}
+.site-title {
+    font-size: 32px;
+    margin: 0;
+    line-height: 1.3;
+}
+.site-title a {
+    color: #121418;
+    text-decoration: none;
+    -webkit-transition: all 0.3s ease-in-out;
+    -moz-transition: all 0.3s ease-in-out;
+    -ms-transition: all 0.3s ease-in-out;
+    -o-transition: all 0.3s ease-in-out;
+    transition: all 0.3s ease-in-out;
+}
+.site-title a:hover,
+.site-title a:focus {
+    color: #da126a;
+}
+.site-description {
+    margin: 0;
+    line-height: 1.5;
+    color: #777;
+    font-size: 14px;
+}
+.site-logo img {
+    max-height: 200px;
+    width: auto;
+}
+.main-navigation {
+    display: block;
+    position: static;
+}
+.main-navigation ul ul {
+    background-color: #fff;
+    text-align: left;
+    padding: 0;
+}
+.main-navigation ul ul li a {
+    padding: 8px 15px;
+    color: #111;
+}
+.main-navigation ul ul a:after {
+    float: right;
+}
+.main-navigation ul {
+    display: none;
+    list-style: none;
+    margin: 0;
+    padding-left: 0;
+}
+
+.main-navigation li {
+    position: relative;
+}
+
+.main-navigation ul.nav-menu > li > a {
+    padding: 15px 18px;
+}
+.main-navigation ul.nav-menu > li:hover > a,
+.main-navigation ul.nav-menu > li > a:hover,
+.main-navigation ul.nav-menu > li > a:focus {
+    color: #f67280;
+}
+.main-navigation form.search-form input {
+    background-color: #111;
+    border-color: #111;
+    color: #111;
+    font-weight: 400;
+}
+.main-navigation a {
+    display: block;
+    text-decoration: none;
+    font-weight: bold;
+    color: #111;
+    font-size: 14px;
+    font-weight: 400;
+    -webkit-transition: all 0.1s ease-in-out;
+    -moz-transition: all 0.1s ease-in-out;
+    -ms-transition: all 0.1s ease-in-out;
+    -o-transition: all 0.1s ease-in-out;
+    transition: all 0.1s ease-in-out;
+}
+.main-navigation ul ul {
+   float: left;
+    position: absolute;
+    top: 100%;
+    left: -999em;
+    z-index: 99999;
+}
+.main-navigation ul ul ul {
+    left: -999em;
+    top: 0;
+}
+.main-navigation ul ul a {
+    width: 225px;
+}
+.main-navigation ul.nav-menu .current-menu-item > a {
+    color: #da126a;
+}
+.main-navigation form.search-form {
+    min-width: 320px;
+}
+.menu-toggle {
+    border-radius: 0;
+    font-size: 16px;
+    margin: auto;
+    outline: none;
+    display: block;
+    height: 60px;
+    position: absolute;
+    background-color: transparent;
+    min-width: 64px;
+    border: none;
+    display: block;
+    float: right;
+    top: 20px;
+    right: 0;
+}
+.menu-toggle:hover, 
+.menu-toggle:focus {
+    outline: thin dotted #fff;
+    background-color: #ffaf29;
+    color: #fff;
+}
+.menu-toggle:hover i, 
+.menu-toggle:focus i {
+    color: #fff;
+}
+.menu-toggle i {
+    color: #666;
+}
+.menu-toggle span {
+    width: 35px;
+    height: 2px;
+    display: block;
+    background-color: #ffb5ad;
+    margin: 9px 0;
+}
+.menu-label {
+    float: right;
+    color: #111;
+    padding: 7px 0 0 10px;
+    display: none;
+}
+button.dropdown-toggle {
+    padding: 0;
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: transparent;
+    border: none;
+    width: 45px;
+    height: 55px;
+    line-height: 56px;
+    outline: none;
+    border-radius: 0;
+}
+button.dropdown-toggle:focus {
+	outline: thin dotted #fff;
+}
+button.dropdown-toggle .fa {
+    color: #fff;
+    font-size: 18px;
+    padding-left: 5px;
+}
+button.dropdown-toggle.active .fa:before {
+    content: "\f106";
+}
+
+.post-wrapper .featured-image {
+    margin-bottom: 0;
+}
+.post-wrapper .entry-footer {
+    padding-bottom: 5px;
+    display: inline-block;
+}
+.post-wrapper .entry-content {
+    margin: 0;
+    color: #565859;
+}
+.cat-links a {
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    float: left;
+    font-size: 14px;
+    position: relative;
+    text-transform: uppercase;
+    line-height: normal;
+    color: #313131;
+    margin-right: 10px;
+    -webkit-transition: color .3s ease,background-color .3s ease,border-color .3s ease;
+    -ms-transition: color .3s ease,background-color .3s ease,border-color .3s ease;
+    -o-transition: color .3s ease,background-color .3s ease,border-color .3s ease;
+    transition: color .3s ease,background-color .3s ease,border-color .3s ease;
+}
+.cat-links a:hover,
+.cat-links a:focus,
+.entry-meta a:hover,
+.entry-meta a:focus {
+    color: #da126a;
+}
+span.cat-links a:not(:last-child):after {
+    content: "/";
+    margin: 0 5px;
+}
+.wp-block-latest-posts.wp-block-latest-posts__list {
+    list-style: disc;
+    padding-left: 1.5em;
+}
+#secondary .widget:not(:last-child) {
+    margin-bottom: 25px;
+}
+#secondary ul {
+    padding: 30px 50px;
+    margin: 0;
+    background-color: #e9ecef;
+}
+#secondary .widget_block.widget_search {
+    margin-bottom: 40px;
+}
+#secondary .widget_block input[type="search"] {
+    background-color: #e9ecef;
+    border-radius: 5px;
+}
+.widget input {
+    height: 53px;
+    padding: 0 15px;
+    border: none;
+}
+#secondary .widget_block button[type="submit"] {
+    color: #666;
+    background-color: #e9ecef;
+    border-color: #e9ecef;
+}
+#secondary .widget_block button[type="submit"]:hover,
+#secondary .widget_block button[type="submit"]:focus {
+    color: #fff;
+    background-color: #da126a;
+    border-color: #da126a;
+}
+#wp-custom-header {
+    text-align: center;
+}
+/*--------------------------------------------------------------
+  FOOTER
+--------------------------------------------------------------*/
+#colophon {
+    background-color: #111;
+    color: #fff;
+}
+#colophon ul {
+    padding: 0 0 0 1em;
+    margin: 0;
+}
+#colophon ul li {
+	margin-bottom: 10px;
+}
+#colophon h1,
+#colophon h2,
+#colophon h3,
+#colophon h4,
+#colophon h5,
+#colophon h6 {
+    color: #fff;
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+#colophon a,
+.site-info {
+    color: #fff;
+}
+#colophon a:hover,
+#colophon a:focus {
+    color: #da126a;
+}
+.site-info {
+    padding: 15px 0;
+    text-align: center;
+    border-top: 1px solid rgb(255 255 255 / 10%);
+}
+.error404  #primary {
+    width: 100%;
+    float: none;
+    padding-right: 0px;
+}
+.error-404.not-found,
+.no-results.not-found {
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+}
+.error-404.not-found .page-title {
+    font-size: 38px;
+}
+form.search-form {
+    position: relative;
+}
+form.search-form {
+    width: 100%;
+    max-width: 100%;
+    position: relative;
+}
+form.search-form input {
+    width: 100%;
+    padding: 0 40px 0 15px;
+    font-weight: 300;
+}
+input.search-field {
+    height: 45px;
+    padding: 0 50px 0 15px;
+    width: 100%;
+}
+form.search-form button.search-submit,
+form.search-form input.search-submit {
+    height: 45px;
+    line-height: 30px;
+    position: absolute;
+    right: 0;
+    top: 0;
+    border: none;
+    width: 80px;
+    padding: 0;
+}
+nav.navigation.pagination {
+    margin-top: 50px;
+    clear: both;
+    display: inline-block;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+}
+.pagination .page-numbers, 
+.pagination .page-numbers.dots:hover, 
+.pagination .page-numbers.dots:focus {
+    text-align: center;
+    line-height: 40px;
+    width: 40px;
+    height: 40px;
+    display: inline-block;
+    margin-right: 5px;
+    color: #000;
+    border-radius: 5px;
+    background-color: #ddd;
+    text-decoration: none;
+    box-shadow: 0 0 30px 1px rgb(0 0 0 / 15%);
+    -moz-box-shadow: 0 0 30px 1px rgba(0,0,0,0.15);
+    -webkit-box-shadow: 0 0 30px 1px rgb(0 0 0 / 15%);
+}
+.pagination .next.page-numbers,
+.pagination .prev.page-numbers {
+    width: auto;
+    padding: 0 10px;
+}
+.pagination .page-numbers.current, 
+.pagination .page-numbers:hover, 
+.pagination .page-numbers:focus {
+    color: #fff;
+    background-color: #f67280;
+    border-radius: 50%;
+}
+.archive-blog article:before, 
+.archive-blog article:after{
+    content: "";
+    display: table;
+    clear: both;
+}
+.archive-blog article {
+    position: relative;
+}
+.archive-blog article .post-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 0;
+    width: 100%;
+    transition: 0.25s ease;
+}
+.archive-blog article .post-wrapper .featured-image {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px 8px 0px 0px;
+}
+.archive-blog article .post-wrapper:hover .featured-image img {
+    transform: scale(1.08);
+}
+.archive-blog article .post-wrapper .entry-container {
+    z-index: 1;
+    position: relative;
+    padding: 30px;
+    border:none;
+}
+
+.archive-blog .entry-container p {
+    margin: 0;
+}
+.cat-links a:hover, 
+.cat-links a:focus {
+	color: #f67280;
+}
+
+/*--------------------------------------------------------------
+# Typography Options
+--------------------------------------------------------------*/
+.header-font-1 h1,
+.header-font-1 h2,
+.header-font-1 h3,
+.header-font-1 h4,
+.header-font-1 h5,
+.header-font-1 h6 {
+    font-family: 'Raleway', sans-serif;
+}
+
+.header-font-2 h1,
+.header-font-2 h2,
+.header-font-2 h3,
+.header-font-2 h4,
+.header-font-2 h5,
+.header-font-2 h6 {
+    font-family: 'Playfair Display', serif;
+}
+
+.header-font-3 h1,
+.header-font-3 h2,
+.header-font-3 h3,
+.header-font-3 h4,
+.header-font-3 h5,
+.header-font-3 h6 {
+    font-family: 'Roboto', sans-serif;
+}
+
+.header-font-4 h1,
+.header-font-4 h2,
+.header-font-4 h3,
+.header-font-4 h4,
+.header-font-4 h5,
+.header-font-4 h6 {
+    font-family: 'Open Sans', sans-serif;
+}
+
+.header-font-5 h1,
+.header-font-5 h2,
+.header-font-5 h3,
+.header-font-5 h4,
+.header-font-5 h5,
+.header-font-5 h6 {
+    font-family: 'Lato', sans-serif;
+}
+
+.header-font-6 h1,
+.header-font-6 h2,
+.header-font-6 h3,
+.header-font-6 h4,
+.header-font-6 h5,
+.header-font-6 h6 {
+    font-family: 'Ubuntu', sans-serif;
+}
+
+.header-font-7 h1,
+.header-font-7 h2,
+.header-font-7 h3,
+.header-font-7 h4,
+.header-font-7 h5,
+.header-font-7 h6 {
+    font-family: 'Montserrat', sans-serif;
+}
+
+.header-font-8 h1,
+.header-font-8 h2,
+.header-font-8 h3,
+.header-font-8 h4,
+.header-font-8 h5,
+.header-font-8 h6 {
+    font-family: 'Lora', serif;
+}
+
+.header-font-9 h1,
+.header-font-9 h2,
+.header-font-9 h3,
+.header-font-9 h4,
+.header-font-9 h5,
+.header-font-9 h6 {
+    font-family: 'Titillium Web', sans-serif;
+}
+
+.header-font-10 h1,
+.header-font-10 h2,
+.header-font-10 h3,
+.header-font-10 h4,
+.header-font-10 h5,
+.header-font-10 h6 {
+    font-family: 'Muli', sans-serif;
+}
+
+.header-font-11 h1,
+.header-font-11 h2,
+.header-font-11 h3,
+.header-font-11 h4,
+.header-font-11 h5,
+.header-font-11 h6 {
+    font-family: 'Oxygen', sans-serif;
+}
+
+.header-font-12 h1,
+.header-font-12 h2,
+.header-font-12 h3,
+.header-font-12 h4,
+.header-font-12 h5,
+.header-font-12 h6 {
+    font-family: 'Nunito Sans', sans-serif;
+}
+
+.header-font-13 h1,
+.header-font-13 h2,
+.header-font-13 h3,
+.header-font-13 h4,
+.header-font-13 h5,
+.header-font-13 h6 {
+    font-family: 'Maven Pro', sans-serif;
+}
+
+.header-font-14 h1,
+.header-font-14 h2,
+.header-font-14 h3,
+.header-font-14 h4,
+.header-font-14 h5,
+.header-font-14 h6 {
+    font-family: 'Cairo', serif;
+}
+
+.header-font-15 h1,
+.header-font-15 h2,
+.header-font-15 h3,
+.header-font-15 h4,
+.header-font-15 h5,
+.header-font-15 h6 {
+    font-family: 'Philosopher', sans-serif;
+}
+
+.header-font-16 h1,
+.header-font-16 h2,
+.header-font-16 h3,
+.header-font-16 h4,
+.header-font-16 h5,
+.header-font-16 h6 {
+    font-family: 'Dosis', sans-serif;
+}
+
+.header-font-17 h1,
+.header-font-17 h2,
+.header-font-17 h3,
+.header-font-17 h4,
+.header-font-17 h5,
+.header-font-17 h6 {
+    font-family: 'Josefin Sans', sans-serif;
+}
+
+.header-font-18 h1,
+.header-font-18 h2,
+.header-font-18 h3,
+.header-font-18 h4,
+.header-font-18 h5,
+.header-font-18 h6 {
+    font-family: 'Poppins', sans-serif;
+}
+
+.body-font-1 {
+    font-family: 'Raleway', sans-serif;
+}
+
+.body-font-2  {
+    font-family: 'Poppins', sans-serif;
+}
+
+.body-font-3 {
+    font-family: 'Roboto', sans-serif;
+}
+
+.body-font-4 {
+    font-family: 'Open Sans', sans-serif;
+}
+
+.body-font-5 {
+    font-family: 'Montserrat', sans-serif;
+}
+
+.body-font-6 {
+    font-family: 'Ubuntu', sans-serif;
+}
+
+.body-font-7 {
+    font-family: 'Playfair Display', serif;
+}
+
+.body-font-8 {
+    font-family: 'Lora', serif;
+}
+
+.body-font-9 {
+    font-family: 'Titillium Web', sans-serif;
+}
+
+.body-font-10 {
+    font-family: 'Muli', sans-serif;
+}
+
+.body-font-11 {
+    font-family: 'Oxygen', sans-serif;
+}
+
+.body-font-12 {
+    font-family: 'Nunito Sans', sans-serif;
+}
+
+.body-font-13 {
+    font-family: 'Maven Pro', sans-serif;
+}
+
+.body-font-14 {
+    font-family: 'Cairo', serif;
+}
+
+.body-font-15 {
+    font-family: 'Philosopher', sans-serif;
+}
+
+.body-font-16 {
+    font-family: 'Dosis', sans-serif;
+}
+
+.body-font-17 {
+    font-family: 'Josefin Sans', sans-serif;
+}
+
+.site-title-font-1 .site-title,
+.site-title-font-1 .site-description {
+    font-family: 'Raleway', sans-serif;
+}
+
+.site-title-font-2 .site-title,
+.site-title-font-2 .site-description {
+    font-family: 'Playfair Display', serif;
+}
+
+.site-title-font-3 .site-title,
+.site-title-font-3 .site-description {
+    font-family: 'Roboto', sans-serif;
+}
+
+.site-title-font-4 .site-title,
+.site-title-font-4 .site-description {
+    font-family: 'Open Sans', sans-serif;
+}
+
+.site-title-font-5 .site-title,
+.site-title-font-5 .site-description {
+    font-family: 'Lato', sans-serif;
+}
+
+.site-title-font-6 .site-title,
+.site-title-font-6 .site-description {
+    font-family: 'Ubuntu', sans-serif;
+}
+
+.site-title-font-7 .site-title,
+.site-title-font-7 .site-description {
+    font-family: 'Montserrat', sans-serif;
+}
+
+.site-title-font-8 .site-title,
+.site-title-font-8 .site-description {
+    font-family: 'Lora', serif;
+}
+
+.site-title-font-9 .site-title,
+.site-title-font-9 .site-description {
+    font-family: 'Titillium Web', sans-serif;
+}
+
+.site-title-font-10 .site-title,
+.site-title-font-10 .site-description {
+    font-family: 'Muli', sans-serif;
+}
+
+.site-title-font-11 .site-title,
+.site-title-font-11 .site-description {
+    font-family: 'Oxygen', sans-serif;
+}
+
+.site-title-font-12 .site-title,
+.site-title-font-12 .site-description {
+    font-family: 'Nunito Sans', sans-serif;
+}
+
+.site-title-font-13 .site-title,
+.site-title-font-13 .site-description {
+    font-family: 'Maven Pro', sans-serif;
+}
+
+.site-title-font-14 .site-title,
+.site-title-font-14 .site-description {
+    font-family: 'Cairo', serif;
+}
+
+.site-title-font-15 .site-title,
+.site-title-font-15 .site-description {
+    font-family: 'Philosopher', sans-serif;
+}
+
+.site-title-font-16 .site-title,
+.site-title-font-16 .site-description {
+    font-family: 'Dosis', sans-serif;
+}
+
+.site-title-font-17 .site-title,
+.site-title-font-17 .site-description {
+    font-family: 'Josefin Sans', sans-serif;
+}
+
+.menu-font-1 .main-navigation a {
+    font-family: 'Raleway', sans-serif;
+}
+
+.menu-font-2 .main-navigation a {
+    font-family: 'Playfair Display', serif;
+}
+
+.menu-font-3 .main-navigation a {
+    font-family: 'Roboto', sans-serif;
+}
+
+.menu-font-4 .main-navigation a {
+    font-family: 'Open Sans', sans-serif;
+}
+
+.menu-font-5 .main-navigation a {
+    font-family: 'Montserrat', sans-serif;
+}
+
+.menu-font-6 .main-navigation a {
+    font-family: 'Ubuntu', sans-serif;
+}
+
+.menu-font-7 .main-navigation a {
+    font-family: 'Lato', sans-serif;
+}
+
+.menu-font-8 .main-navigation a {
+    font-family: 'Lora', serif;
+}
+
+.menu-font-9 .main-navigation a {
+    font-family: 'Titillium Web', sans-serif;
+}
+
+.menu-font-10 .main-navigation a {
+    font-family: 'Muli', sans-serif;
+}
+
+.menu-font-11 .main-navigation a {
+    font-family: 'Oxygen', sans-serif;
+}
+
+.menu-font-12 .main-navigation a {
+    font-family: 'Nunito Sans', sans-serif;
+}
+
+.menu-font-13 .main-navigation a {
+    font-family: 'Maven Pro', sans-serif;
+}
+
+.menu-font-14 .main-navigation a {
+    font-family: 'Cairo', serif;
+}
+
+.menu-font-15 .main-navigation a {
+    font-family: 'Philosopher', sans-serif;
+}
+
+.menu-font-16 .main-navigation a {
+    font-family: 'Dosis', sans-serif;
+}
+
+.menu-font-17 .main-navigation a {
+    font-family: 'Josefin Sans', sans-serif;
+}
+
+/*--------------------------------------------------------------
+	Responsive
+--------------------------------------------------------------*/
+@media screen and (min-width: 567px) {
+	.column-2,
+	.column-3,
+	.column-4,
+	.column-5,
+	.column-6 {
+		margin: 0 -15px;
+	}
+	.column-2 article,
+	.column-3 article,
+	.column-4 article,
+	.column-5 article,
+	.column-6 article,
+	.column-2 .widget-column,
+	.column-3 .widget-column,
+	.column-4 .widget-column,
+	.column-5 .widget-column,
+	.column-6 .widget-column {
+		padding: 0 15px;
+		float: left;
+		width: 50%;
+		margin-bottom: 30px;
+	}
+	.column-2 article:nth-child(2n+1),
+	.column-3 article:nth-child(2n+1),
+	.column-4 article:nth-child(2n+1),
+	.column-5 article:nth-child(2n+1),
+	.column-6 article:nth-child(2n+1),
+	.column-2 .widget-column:nth-child(2n+1),
+	.column-3 .widget-column:nth-child(2n+1),
+	.column-4 .widget-column:nth-child(2n+1),
+	.column-5 .widget-column:nth-child(2n+1),
+	.column-6 .widget-column:nth-child(2n+1) {
+		clear: left;
+	}
+	.column-2 article:nth-last-child(-n+2),
+	.column-3 article:nth-last-child(-n+2),
+	.column-4 article:nth-last-child(-n+2),
+	.column-5 article:nth-last-child(-n+2),
+	.column-6 article:nth-last-child(-n+2),
+	.column-2 .widget-column:nth-last-child(-n+2),
+	.column-3 .widget-column:nth-last-child(-n+2),
+	.column-4 .widget-column:nth-last-child(-n+2),
+	.column-5 .widget-column:nth-last-child(-n+2),
+	.column-6 .widget-column:nth-last-child(-n+2) {
+		margin-bottom: 0;
+	}
+}
+
+@media screen and (min-width: 767px) {
+    .column-1 article,
+    .column-1 .widget-column {
+        width: 100%;
+    }
+    .column-2 article,
+    .column-2 .widget-column {
+        width: 50%;
+        float: left;
+    }
+    .column-3 article,
+    .column-3 .widget-column {
+        width: 33.33%;
+        float: left;
+    }
+    .column-4 article,
+    .column-4 .widget-column {
+        width: 50%;
+        float: left;
+    }
+    .column-5 article,
+    .column-5 .widget-column {
+        width: 20%;
+        float: left;
+    }
+    .column-6 article,
+    .column-6 .widget-column {
+        width: 16.66%;
+        float: left;
+    }
+	.column-3 article,
+	.column-5 article,
+	.column-6 article,
+	.column-3 .widget-column,
+	.column-5 .widget-column,
+	.column-6 .widget-column {
+		width: 33.33%;
+	}
+	.column-3 article:nth-child(2n+1),
+	.column-5 article:nth-child(2n+1),
+	.column-6 article:nth-child(2n+1),
+	.column-3 .widget-column:nth-child(2n+1),
+	.column-5 .widget-column:nth-child(2n+1),
+	.column-6 .widget-column:nth-child(2n+1) {
+		clear: none;
+	}
+	.column-3 article:nth-child(3n+1),
+	.column-5 article:nth-child(3n+1),
+	.column-6 article:nth-child(3n+1),
+	.column-3 .widget-column:nth-child(3n+1),
+	.column-5 .widget-column:nth-child(3n+1),
+	.column-6 .widget-column:nth-child(3n+1) {
+		clear: left;
+	}
+	.column-3 article:nth-last-child(-n+3),
+	.column-5 article:nth-last-child(-n+3),
+	.column-6 article:nth-last-child(-n+3),
+	.column-3 .widget-column:nth-last-child(-n+3),
+	.column-5 .widget-column:nth-last-child(-n+3),
+	.column-6 .widget-column:nth-last-child(-n+3) {
+		margin-bottom: 0;
+	}
+
+}
+
+@media screen and (min-width: 992px) {
+	.column-4 article,
+	.column-4 .widget-column  {
+        width: 25%;
+        float: left;
+    }
+    .column-5 article,
+    .column-5 .widget-column {
+        width: 20%;
+        float: left;
+    }
+    .column-4 article,
+    .column-4 .widget-column {
+		width: 25%;
+	}
+	.column-5 article,
+	.column-5 .widget-column {
+		width: 20%;
+	}
+	.column-6 article,
+	.column-6 .widget-column {
+		width: 16.66%;
+	}
+	.column-4 article:nth-child(2n+1),
+	.column-5 article:nth-child(3n+1),
+	.column-6 article:nth-child(3n+1),
+	.column-4 .widget-column:nth-child(2n+1),
+	.column-5 .widget-column:nth-child(3n+1),
+	.column-6 .widget-column:nth-child(3n+1) {
+		clear: none;
+	}
+	.column-4 article:nth-child(4n+1),
+	.column-5 article:nth-child(5n+1),
+	.column-6 article:nth-child(6n+1),
+	.column-4 .widget-column:nth-child(4n+1),
+	.column-5 .widget-column:nth-child(5n+1),
+	.column-6 .widget-column:nth-child(6n+1) {
+		clear: left;
+	}
+	.column-4 article:nth-last-child(-n+4),
+	.column-5 article:nth-last-child(-n+5),
+	.column-6 article:nth-last-child(-n+6),
+	.column-4 .widget-column:nth-last-child(-n+4),
+	.column-5 .widget-column:nth-last-child(-n+5),
+	.column-6 .widget-column:nth-last-child(-n+6) {
+		margin-bottom: 0;
+	}
+
+}
+
+@media screen and (min-width: 1024px) {
+	.main-navigation {
+	    display: block;
+	    position: relative;
+	    float: right;
+	    width: 70%;
+	}
+    .main-navigation .menu-item-has-children > a:after {
+        content: "\f107";
+        font-family: "FontAwesome";
+        padding-left: 8px;
+    }
+    .main-navigation ul ul .menu-item-has-children > a:after {
+        content: "\f105";
+    }
+    .main-navigation ul.nav-menu {
+        display: block !important;
+        height: auto !important;
+        text-align: right;
+    }
+    .main-navigation ul.nav-menu > li > a {
+	    color: #121418;
+	}
+    .main-navigation ul li:hover > ul,
+    .main-navigation ul li.focus > ul {
+        left: 0;
+        right: auto;
+    }
+    .main-navigation ul ul li:hover > ul,
+    .main-navigation ul ul li.focus > ul {
+        left: 100%;
+        right: auto;
+    }
+    .main-navigation ul ul li:hover > a,
+    .main-navigation ul ul li.focus > a {
+        background-color: #da126a;
+        color: #fff !important;
+    }
+    .main-navigation ul.sub-menu > li:last-child > a {
+        border-bottom: none;
+    }
+    .main-navigation ul ul li {
+        border-bottom: 1px solid #eee;
+    }
+    .main-navigation ul ul > li:last-child {
+        border-bottom: none;
+    }
+    .main-navigation ul ul ul {
+        top: 0;
+    }
+    .menu-toggle {
+        height: 80px;
+        position: absolute;
+        top: 50%;
+        right: 35px;
+        -webkit-transform: translateY(-50%);
+        -moz-transform: translateY(-50%);
+        -ms-transform: translateY(-50%);
+        -o-transform: translateY(-50%);
+        transform: translateY(-50%);
+        display: none;
+    }
+    .main-navigation .search-active .icon-search {
+        display: none;
+    }
+    .main-navigation .search-active .icon-close {
+        display: inline-block;
+    }
+    button.dropdown-toggle {
+        display: none;
+    }
+    .menu-toggle {
+        display: none;
+    }
+    .main-navigation ul {
+        display: block;
+    }
+    .main-navigation li {
+        display: inline-block;
+    }
+    .main-navigation form.search-form {
+        border: 20px solid #111;
+    }
+    .site-branding {
+	    float: left;
+	}
+	.main-navigation {
+	    position: relative;
+	}
+    #primary {
+	    width: 75%;
+	    float: left;
+	    padding-right: 30px;
+	    margin-bottom: 0;
+	}
+
+	#secondary {
+	    width: 25%;
+	    float: left;
+	    position: sticky;
+	    top: 30px;
+	}
+
+	.right-sidebar #primary {
+		float: left;
+	    padding-right: 40px;
+	}
+
+	.right-sidebar #secondary {
+		float: right;
+	}
+
+	.left-sidebar #primary {
+		float: right;
+	    padding-right: 0;
+	    padding-left: 40px;
+	}
+
+	.left-sidebar #secondary {
+		float: left;
+	}
+}
+
+@media screen and (min-width: 1900px) {
+	.container {
+	    max-width: 1440px;
+	}
+}
+
+@media screen and (max-width: 1023px) {
+	.main-navigation ul.nav-menu {
+	    margin-right: 0;
+	    border-top: 1px solid #666;
+	    background-color: #000;
+	    margin-top: 0;
+	    position: absolute;
+	    top: 100%;
+	    left: auto;
+	    right: 0;
+	    width: 100%;
+	}
+	.main-navigation ul.nav-menu li {
+	    border-bottom: 1px solid #666;
+	    display: block;
+	    width: 100%;
+	    padding: 0;
+	}
+	.main-navigation a {
+	    color: #fff;
+	}
+	.main-navigation ul ul, 
+	.main-navigation ul ul ul {
+	    box-shadow: none;
+	    float: none;
+	    position: relative;
+	    top: 0;
+	    left: 0;
+	    margin-bottom: 0;
+	    display: none;
+	    background-color: #000;
+	}
+	.main-navigation ul ul {
+	    border-top: 1px solid #666;
+	}
+	.main-navigation ul.nav-menu li {
+	    border-bottom: 1px solid #666;
+	    display: block;
+	    width: 100%;
+	}
+	.main-navigation ul.sub-menu li a {
+	    border-left: none;
+	}
+	.main-navigation ul ul li a {
+	    padding-left: 35px;
+	    color: #fff;
+	}
+	.main-navigation ul ul a {
+	    width: 100%;
+	}
+}
+
+@media screen and (max-width: 768px) {
+	.entry-title {
+	    font-size: 28px;
+	    line-height: 30px;
+	}
+	.column-2 article {
+	    float: none;
+	    width: 100%;
+	}
+}
+
+@media screen and (max-width: 567px) {
+	.archive-blog article.has-post-thumbnail .post-wrapper .entry-container {
+	    margin: -60px 18px 0;
+	}
+	.archive-blog article .post-wrapper .entry-container {
+	    padding: 30px 20px;
+	}
+}
+

@@ -1,0 +1,7 @@
+你需要注意的是 如果你去使用了这个pcm5102的模块 那么它和其中一个6.35插孔会冲突 
+导致其中一个6.35插孔的地不能被插入 会被挡住 你可以把焊盘先堵住 然后把6.35的地脚剪掉一部分 然后焊在上边
+这样的话就不会起冲突  还有6.35的焊盘有些小 无法插进去 本来我已经做了修改 并且已经打印了板子 但是文件丢失了
+而且我没有找到 所以你可能需要自己进行修改焊盘的大小 
+You need to be aware that if you use this PCM5102 module, it will conflict with one of the 6.35mm jacks. This will prevent the ground of that 6.35mm jack from being inserted as it will be blocked. 
+You can first cover the pad, then trim part of the ground pin of the 6.35mm jack, and solder it on top. That way, there won't be a conflict. Also, some 6.35mm pads are a bit small and can't be inserted. 
+I originally made modifications and already printed the board, but the files were lost and I couldn't find them, so you might need to adjust the pad sizes yourself.

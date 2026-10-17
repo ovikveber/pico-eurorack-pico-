@@ -1,0 +1,197 @@
+
+===== PAGE 1 =====
+Bernd C. Meiser: Effect-ive!                                                                          Boss DS-1 
+ 
+© Bernd C. Meiser & GITEC 2019              https://www.gitec-forum-eng.de 
+1 
+Preface: Dear reader, 
+another "Effect-ive!"-article by Bernd Meiser: this (5th-) one concentrating on the Boss DS-1. By now, I feel that 
+over the almost 50 years I have been concerned with playing and investigating the guitar, I have missed out in too 
+much guitar stuff, because – again – I have actually never tried the DS-1! It seems me and my buddies for a long 
+stretch of time were way too swallowed up in the "I ain't usin' no transistor distortion pedal stuff!"-movement,... 
+had I known then what setup I was (and am) using later, I may have been much more open-minded already then, 
+and checked out the DS-1. Anyway, here's the discussion of that device.  T.Z. 
+ 
+ 
+From the "Effect-ive!" series of articles:  
+Three degrees of Distortion: Boss DS-1 
+ 
+By Bernd C. Meiser, translation by Tilmann Zwicker  
+ 
+In the summer of 1978, Boss introduced the distortion DS-1 pedal (together with their 
+fine CS-1 chorus pedal), after they had successfully started to market the overdrive 
+OD-1, the 4-stage phaser PH-1, and the filter-pedal SP-1. The DS-1 was to prove 
+itself to be a long-running top-seller. It can be found in two versions hat differ in 
+circuit design and thus also to some extent in sound. The present article looks into 
+the first edition of the device.  
+ 
+ 
+Boss DS-1  
+ 
+Let's check out the schematic in Fig. 1. Right at the input we find the obligatory 
+impedance converter Q1 with an input resistor of 470 kOhm that put only a marginal 
+load onto the pickup line (translator's note: although of course an overall input 
+impedance of the impedance converter of 1 MOhm would have been preferable in 
+order to influence the guitar output even less - and later stomp boxes often upped 
+their input impedance to that level. But in the DS-1 this would have necessitated a 
+different circuitry with a FET or an OP-amp at the input). The resonance of the pickup 
+is preserved almost to its full extent. Subsequently we find the "silent switching" 
+system, comprising the switching FET-arrangement Q6 (translator's note: the control 
+circuit for switching Q6 and Q3 is not shown) . The latter is of a high-impedance 
+configuration that generates very little load for the impedance converter - well done. 
+Note: with a low-impedance load (as it is the case e.g. in the TS-9), the BJT (bipolar 
+junction transistor) impedance converter reacts with slight one-sided signal limiting 
+clipping when driven with a strong signal (see the article about impedance converters 
+(translator's note: this article is yet to be translated).  
+ 
+ 
+ 
+ 
+Fig1: Schematic of Boss DS-1 
+
+===== PAGE 2 =====
+Bernd C. Meiser: Effect-ive!                                                                          Boss DS-1 
+ 
+© Bernd C. Meiser & GITEC 2019              https://www.gitec-forum-eng.de 
+2 
+ 
+T r a n s i s t o r  a m p  -  t h e  f i r s t  d e g r e e  
+What follows in the signal chain is a transistor circuit (formed of Q2) that provides 
+audible "crunch" to the signal. Looking at the transmission characteristic (Fig. 2), we 
+observe a monotonously decreasing curve between +4 Volts via 0 Volts down to -4 
+Volts, where it sharply turns off into the horizontal that also represents the drive limit 
+at that point. That continues slight curvature equates a nice kind of fine harmonic 
+distortion that an operational (OP-amp) amplifier would not be able to deliver. OP-
+amp circuits either have a straight-line characteristic between the drive-limits, or that 
+straight line is heavily bent – usually employing semiconductor diodes – to serve for 
+overdrive purposes. It is difficult to realize an in-between characteristic - with simple 
+means, anyway. In the present case, the designers made short work and deployed a 
+transistor stage.   
+ 
+ 
+Fig. 2: Boss DS-1; transmission characteristic of input transistor amp 
+ 
+The Q2-arrangement operates as an inverter. For those not as well versed in 
+transistor-ology: as an OP-amp circuit, this would be the "inverting OP amp" with a 
+(negative-) feedback resistor from the output to the "–"-input and an input resistor 
+from the circuit input to the "–"-input of the OP-amp. Our transistor circuit here is 
+based on the same principle:  the feedback resistor of 470 kOhm is connected 
+between collector (= output) and base (= "–"-input) and serves in a double role also 
+adjusting the operating point of the transistor. In the latter role, it cooperates with the 
+100-kOhm-resistor between base and ground. The formal input resistor of the Q2-
+circuit we need to add the output impedance of the impedance converter Q1 and the 
+"on"-resistance of switching FET Q6 resulting in approximately 550 Ohm. There is 
+also a coupling capacitor of 47 nF (more on that later) that takes care of the 
+separation of the potentials. Feeding these values (550 Ohm, 470 kOhm) into the 
+formula for the inverting OP-amp, we calculate a massive gain of 850 = 58 dB. Out 
+comparably whimp-ish single-transistor stage won't reach that - in reality we get 
+about 36 dB i.e. a factor of 65. As we will see, that is more than good for our 
+purposes here.  
+ 
+Boss DS-1: 
+transmission characteristic  
+of input transistor amp 
+
+===== PAGE 3 =====
+Bernd C. Meiser: Effect-ive!                                                                          Boss DS-1 
+ 
+© Bernd C. Meiser & GITEC 2019              https://www.gitec-forum-eng.de 
+3 
+On order not to make the distortion to be generated not too "prickly", the 470-kOhm 
+feedback resistor has the 250-pF capacitor C4 connected in parallel. And then, there 
+is a high-pass constituted of the already mentioned input resistor (550 Ohm) and the 
+47 nF input capacitor with a resulting cutoff frequency  (-3 db) at 600 Hz. This 
+attenuates the bass distinctly – anyone wishing for more bass at this point may 
+simply double this C3 = 47 nF. Regarding basic harmonic distortion and frequency 
+response, the signal is now optimally preconditioned for further processing. By the 
+way: we will get back to this subject matter in another article – but I shall not reveal 
+more here ... (translator's note: this article is yet to be translated).  
+    
+ 
+G a i n  O P - a m p  -  t h e  s e c o n d  d e g r e e  
+The now pre-processed signal is now fed to an amplifier chip of a type that is rarely 
+found in FX-pedals: the TA71236P, which is a single OP-amp accommodated in an 
+8-pin SIL-housing and made by Toshiba. It is marketed as OP-amp for special HiFi-
+preamp application – but in fact nothing special when looked at more closely. The 
+wiring seems a bit muddled – in particular the two small capacitors of a few pF each 
+at the output are a bit bewildering; they "slow down" the OP-amp ... that will be 
+enough knowledge about them for now. The gain of the Toshiba amp can be 
+adjusted from 1 to about a factor of 20 using the "Distortion"-pot. (Note: if you require 
+more drive, you could simply half the value of the resistor R13 (4,7 kOhm) at the 
+lower connection of the Distortion pot). The signal is now ready to deal with the 
+"clipping"-arrangement of the silicon-(SI)-diodes.   
+ 
+D i o d e - c l i p p i n g  -  t h e  t h i r d  d e g r e e  
+ 
+The diode-clipping section – driven via current-limiting resistor R14 (2,2 kOhm) – will 
+be well known. Of particular interest is the third (green) curve in the transmission 
+characteristic of the clipping stage shown in Fig. 3. The line abruptly stops at rather 
+exactly the +/-0,6-Volt-diode-voltage and continues horizontally. This is not owed too 
+the dynamic diode-clipping, but the OP-amp has hit its ceiling! Despite further rising 
+input voltage, the OP-amp simply cannot give us more at the output – and the diode 
+downstream of the OP-amp cannot but mirror this fact. The triangle-waveshape 
+voltage used for testing was peak-to-peak Vs=200mV; the gain generated by the OP-
+amp is the parameter in the figure. 
+ 
+
+===== PAGE 4 =====
+Bernd C. Meiser: Effect-ive!                                                                          Boss DS-1 
+ 
+© Bernd C. Meiser & GITEC 2019              https://www.gitec-forum-eng.de 
+4 
+ 
+Fig. 3: Boss DS-1; transmission characteristic of diode clipper arrangement 
+ 
+The blue curve with lower gain shows a different behavior, giving a continuously 
+decreasing incline in the first quadrant. Many of us will recognize this transmission 
+characteristic: indeed, it is a modified "ln"-function (logarithmus naturalis, natural 
+logarithm). In fact, all three of the curves depicting the diode clipping are such 
+modified ln-functions (cf. basics of diode theory) - except for that clipping at +/- 0,6 
+Volt, where the modified ln-function changes over into a line with inclination "0". To 
+explicitly show this matter, I have added, in Fig. 5 below, the pure ln-function to the 
+clipping-graph of Fig. 4 for comparison. Such an ln-function is generated in its wider 
+sense in particular by so-caller "overdrive"-circuits.     
+ 
+ 
+Fig. 4: Boss DS-1: signal across the anti-parallel SI-diodes 
+ 
+But check out Fig. 4 first: here we see the plot of the signal curve across the SI-
+diodes.  
+Boss DS-1: 
+transmission characteristic  
+of diode clipper 
+Boss DS-1: 
+input voltage ahead  
+of the OP-amp 
+ 
+ 
+
+===== PAGE 5 =====
+Bernd C. Meiser: Effect-ive!                                                                          Boss DS-1 
+ 
+© Bernd C. Meiser & GITEC 2019              https://www.gitec-forum-eng.de 
+5 
+As testing voltage ahead of the OP-amp, this time a sine-shaped voltage of Vs= 
+200mV peak-to-peak was used – for the present discussion it is better suite than the 
+more analytical triangular voltage. Again, the gain of the OP-amp is the parameter. 
+We clearly see how the output voltage across the diodes is continuously compressed 
+at a gain of factor 10. At the gain-factors 20 and 100, we recognize in addition the 
+limiting effected by the OP-amp as its output stage goes into clipping against the 
+supply voltage.  
+ 
+ 
+ 
+ 
+Fig. 5: as Fig. 4 but with triangular input voltage and the ln-function indicated. 
+ 
+T o n e - F i l t e r  
+The tone-filter is well-known from the Big Muff Pi offered from the early 1970's by 
+Electro-Harmonix. One branch is formed by a low-pass, the other by a high-pass, 
+and in between we find a pot to cross-fade between the two transmission 
+characteristics. In other words, you can choose between bass-boost and bass-boost, 
+and in between there is a slight middle-notch as transition. We shall dissect this tone 
+filter in a dedicated article concentrating on the Big Muff Pi (translator's note: this 
+article is yet to be translated).  
+ 
+Input voltage 
+ln-function 

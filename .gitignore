@@ -1,0 +1,40 @@
+# Build output
+build/
+out_*/
+*.bin
+*.uf2
+!OV-03开源文件/固件/*.uf2
+*.elf
+*.map
+*.dis
+
+# GitHub 单文件 100MB 限制：安装包不入库，需要时放 Release
+OV-03开源文件/软件/*.exe
+
+# Large mechanical files (keep 2D panel files, exclude 3D models)
+*.stl
+*.step
+*.STEP
+*.3mf
+*.7z
+*.rar
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local secrets and backups
+.env
+.env.*
+*.key
+*.pem
+*.bak
+*.tmp
+*~
+
+# Dependencies
+node_modules/
+.venv/

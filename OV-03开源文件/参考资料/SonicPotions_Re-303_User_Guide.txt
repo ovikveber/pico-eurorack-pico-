@@ -1,0 +1,740 @@
+
+===== PAGE 1 =====
+RE-303 CPU
+SONIC-POTIONS
+!!! PRELIMINARY DRAFT !!!
+v 0.911
+WORK IN PROGRESS
+Intro........................................................................................................................................3
+Quickstart...............................................................................................................................3
+The random way...........................................................................................................3
+The manual way............................................................................................................3
+Control scheme.....................................................................................................................4
+Pattern Write Mode...............................................................................................................4
+Auto Exit............................................................................................................................4
+Normal Mode.....................................................................................................................5
+Switching Patterns............................................................................................................5
+Pattern length....................................................................................................................5
+Triplets..........................................................................................................................6
+Pattern Chain.....................................................................................................................6
+Pattern Direction...............................................................................................................6
+Time Mode.........................................................................................................................7
+Some notes on editing time sequences.........................................................................7
+Pitch mode.........................................................................................................................8
+Note entry.....................................................................................................................8
+Note attributes..............................................................................................................8
+Live Recording Mode.........................................................................................................9
+Recording with internal buttons....................................................................................9
+Recording MIDI...............................................................................................................9
+Classic 303 Tap Time Mode..........................................................................................9
+live pitch mode..............................................................................................................9
+Chain Recording............................................................................................................10
+Clear Mode.......................................................................................................................10
+Pattern Randomizer.....................................................................................................10
+Forcing random patterns to a scale............................................................................10
+Clear Pattern.................................................................................................................11
+RE-303 User Guide
+1
+                                
+
+===== PAGE 2 =====
+Pattern Copy/Paste......................................................................................................11
+Rotate Pattern Steps...................................................................................................12
+Pattern Play Mode................................................................................................................12
+Normal Mode....................................................................................................................12
+Pitch Mode........................................................................................................................12
+AllAccent + AllSlide.....................................................................................................13
+Transpose pattern up/down........................................................................................13
+Pattern Chain....................................................................................................................13
+Track Write Mode.................................................................................................................13
+Normal Mode....................................................................................................................13
+Pitch Mode........................................................................................................................14
+Time Mode........................................................................................................................14
+Clear Mode.......................................................................................................................14
+Clear Track...................................................................................................................14
+Copying tracks.............................................................................................................15
+Track Play Mode...................................................................................................................15
+Pitch Mode........................................................................................................................16
+Time Mode........................................................................................................................16
+MIDI control..........................................................................................................................16
+Accent..............................................................................................................................16
+Slide..................................................................................................................................16
+SysEx....................................................................................................................................16
+Pattern SysEx dump........................................................................................................16
+Track SysEx dump............................................................................................................17
+Bulk SysEx dump..............................................................................................................17
+A note on saving received SysEx dumps.........................................................................17
+Config Mode..........................................................................................................................17
+MIDI Channel.....................................................................................................................18
+MIDI Rx..............................................................................................................................18
+MIDI Sync Rx.....................................................................................................................18
+MIDI Tx..............................................................................................................................18
+Timing...............................................................................................................................18
+on = Original Mode........................................................................................................18
+off = tight mode...........................................................................................................18
+Saving data...........................................................................................................................18
+Firmware Update..................................................................................................................19
+MIDI implementation chart...................................................................................................19
+RE-303 User Guide
+2
+                                
+
+===== PAGE 3 =====
+Intro
+Intro
+The RE-303 CPU was developed for the DinSync.info RE-303 replica.
+The basic sequencer concept is the same as on the original 303. Pitch and Time 
+information is stored independently. There are time steps that only hold step(note on) tie 
+(note length) and rest (no note) information. The pitch steps store the note value, accent, 
+slide and transpose information. 
+Quickstart
+The random way
+The fastest way to get some sounds out of your new CPU is to use the random pattern 
+generator.
+•
+Make sure you are in Pattern Write mode (rotary mode switch)
+•
+Press  FUNCTION to make sure you are in normal mode.
+•
+Hold CLEAR and press the ACCENT button. A random pattern is generated.
+•
+Press RUN and enjoy!
+The manual way
+•
+Make sure you are in Pattern Write mode (rotary mode switch)
+•
+Hold FUNCTION and press C2 to set the pattern length to 8 steps
+•
+Press PITCH to enter pitch mode
+•
+Use the note buttons to enter a few notes
+•
+Press TIME to enter time mode
+•
+Use the DOWN, UP and ACCENT buttons to set steps, ties and rests
+•
+Hit RUN and enjoy!
+RE-303 User Guide
+3
+                                
+
+===== PAGE 4 =====
+Control scheme
+Control scheme
+The 303 has four modes: 
+•
+Write Track – edit and arrange tracks by chaining up to 64 patterns
+•
+Play Track – play previously created tracks
+•
+Write Pattern -  create and edit patterns
+•
+Play Pattern – play previously created patterns and modify them live
+Each mode has multiple control layers that give the buttons and LEDs other functions.
+These are 
+•
+Normal mode 
+•
+Pitch mode
+•
+Time mode 
+•
+Clear mode
+•
+Config mode 
+These modes are accessed by pressing or holding the corresponding button. An in depth 
+description of these control layers is given in the next chapters where we take a closer 
+look at the four modes.
+Pattern Write Mode
+In this mode you create and edit patterns.
+Auto Exit
+In pitch and time mode the machine will automatically return to normal mode when the 
+end of the pattern is reached.
+RE-303 User Guide
+4
+                                
+
+===== PAGE 5 =====
+Pattern Write Mode
+Normal Mode
+Normal mode is indicated by a lit normal mode LED. You can select the active pattern to 
+edit using the 8 PATTERN BUTTONS and the A/B pattern section using the ACCENT and 
+SLIDE buttons. This gives access to 16 patterns per pattern group.
+When  the sequencer is running a chaselight is shown on the pattern button LEDs.
+Switching Patterns
+The active pattern is indicated by a flashing LED. While the sequencer is stopped, pattern 
+changes are instantaneous. If the sequencer is running, pattern changes are queued until 
+the end of the bar. Queued Patterns are indicated by a constantly lit LED.
+Pattern 
+ 
+ length
+There are various ways to set the pattern length (1 to 16 Steps). Length is edited in 
+function mode. This mode is active while the FUNCTION button is held down.
+Here are the track length key combos:
+Hold FUNCTION = show pattern length
+FUNCTION + tap DOWN = tap pattern length (8xDOWN => pattern length 8) like on the 
+original 303
+FUNCTION + note buttons = set pattern length directly. white = 1-8/8-16 depending on C#
+or D#
+FUNCTION + BACK/NEXT = decrease/increase pattern length one step at a time
+FUNCTION + ACCENT = half pattern length
+FUNCTION + SLIDE = double pattern length
+RE-303 User Guide
+5
+                                
+
+===== PAGE 6 =====
+Pattern Write Mode
+Triplets
+Triplet mode is used to create patterns in a 3/4 measure. In the normal 4/4 measure a 
+complete bar has 16 steps with 6 clock pulses used for each step. The gate is on for 3 
+clocks and off for the other 3 clocks.
+In triplet mode a bar has a maximum of 12 steps and uses 8 clock pulses for a step. The 
+gate is on for the first 5 and off for the last 3 clock pulses of the step, so you get a 
+different gate length and tempo compared to the 4/4 mode.
+To turn triplet mode on or off press FUNCTION + UP 
+While the FUNCTION key is held, the UP LED will indicate if the triplet mode is active or 
+not.
+Pattern 
+ 
+ Chain
+It is possible to chain up to 8 patterns from the same pattern group and section.
+To create a chain:
+•
+hold down the first pattern select button to select chain start
+•
+Press the second pattern button to set the chain end.
+All patterns in between will be played one after another. Chained pattern LEDs will light 
+up, playing pattern LED will flash.
+This also works for live recording mode! That is, you can chain up to 8 patterns to record 
+a 8 bar pattern in one go.
+Pattern Direction
+The pattern playback direction can be changed and is saved with the pattern. 
+Use the UP and DOWN buttons In normal mode to set the playback direction:
+•
+ DOWN = backward, down LED lit
+•
+ UP = forward, up LED lit
+RE-303 User Guide
+6
+                                
+
+===== PAGE 7 =====
+Pattern Write Mode
+•
+ UP + DOWN = pingpong, up and down LED lit
+•
+ DOWN + UP = random, up and down LED blinking
+Time Mode
+Time mode is indicated by a lit time mode LED. Here you can edit the timing information 
+of the pattern. The note LEDs will show the active step number and you can step forward
+an backward through the sequence with the NEXT and BACK buttons.
+The down, up and accent LEDs will show the value of the active step and the respective 
+buttons are used to change the value of a step.
+Some notes on editing time sequences
+The time sequence is composed of 3 basic values:
+•
+Step (DOWN) – A note is played
+•
+Tie (UP) – the previous note is sustained
+•
+Rest (ACCENT) – silence/pause
+It is important to remember the 303 sequencer concept of slit time and note information.
+You can think of it as 2 separate sequencers. One holding only the time information about
+active steps and note durations, the other holding only the note/pitch information.
+Only when a Step value is set in the time sequencer, the pitch sequencer is advanced.
+Here is an example:
+Time sequence
+STEP
+REST
+REST
+STEP
+TIE
+Pitch sequence
+C
+D
+E
+F
+G
+There are only two STEP events in the time sequence. On a classic step sequencer with
+combined pitch and time information you would expect that the two notes C and F would
+RE-303 User Guide
+7
+                                
+
+===== PAGE 8 =====
+Pattern Write Mode
+play. But since the pitch sequencer on the 303 is only advanced on STEP events in the
+time sequencer, only the two notes C and D will play. 
+Active steps, ties and rests are placed like in a ‘normal’ 16 step sequencer grid.
+Pitch mode
+Pitch mode is indicated by a lit pitch mode LED. Here the pitch information of the pattern 
+can be edited and note attributes (accent, slide and transpose) can be set.
+The note buttons show the active step/position in the pattern.
+            /* - Pitch mode LED lit
+             * - steps indicate selected pitch of active steps
+             * - accent, slide, up/down show active attributes
+             */
+Pitch, accent, slide and transpose are set in the pitch sequencer.
+When the seq is stopped, entered notes are played.
+Note entry
+- Step buttons enter notes
+- auto advance
+- hold acc,slide,up/down while pressing note to add attributes
+Note attributes
+- hold next or back to show step information and step through the sequence
+- pitch is shown on step buttons
+- attributes are shown
+- attributes can be toggled with their buttons
+RE-303 User Guide
+8
+                                
+
+===== PAGE 9 =====
+Pattern Write Mode
+Live Recording Mode
+- no mode led lit
+- chaselight
+Allows to record notes into the running sequencer either by playing the 303s note 
+buttons or a MIDI controller.
+To enter live recording mode press the BACK button while the sequencer is running in 
+normal mode. To return to normal mode pres BACK or the FUNCTION button.
+Recording with internal buttons
+- record notes using note buttons
+- add accented or transposed notes by holding acc/up/down before pressing note button
+- slides are recorded by playing legato
+Recording MIDI
+MIDI can be used to input notes. A note on velocity above 65 plays an accented note. To 
+add slides play 2 notes legato.
+Classic 303 Tap Time Mode
+The TAP button can be used to tap in time information (step and tie events)
+live pitch mode
+- Pitch led lit
+- chaselight
+- accent slide up down
+-
+- hold pitch -> live pitch mode
+- acc/slide/up/down can be toggled and viewed via the buttons
+RE-303 User Guide
+9
+                                
+
+===== PAGE 10 =====
+Pattern Write Mode
+Chain Recording
+If a pattern chain is activated before entering live recording mode, sequences up to 8 
+patterns (128 Steps) can be recorded in realtime.
+Clear Mode
+Clear mode is active while the CLEAR button is held.
+Pattern Randomizer
+A random pattern can be generated in the current active slot. 
+CLEAR + ACCENT 
+= randomize all
+CLEAR + TIME + ACCENT 
+= randomize time
+CLEAR + PITCH + ACCENT 
+= randomize pitch
+Forcing random patterns to a scale
+The random patterns generated can be forced to major and minor scales. To select the 
+scale, enter the randomizer config page by holding the FUNCTION key and then pressing 
+the  PITCH key. The function and pitch LED will light up while the config page is active.
+You can now select if you want a major or minor scale with the UP and DOWN buttons.
+UP = Major
+DOWN = Minor
+The corresponding LED on the buttons will show which mode is currently active.
+The 12  NOTE BUTTONS select the base note. The note LEDs will show the currently 
+selected base note.
+The SLIDE  button is used to turn the force to scale function on and off. If the slide LED is
+lit, the scale function is active.
+RE-303 User Guide
+10
+                                
+
+===== PAGE 11 =====
+Pattern Write Mode
+Here is an example how to limit the pattern randomizer to F-Minor scales
+•
+Hold down FUNCTION and press PITCH to enter config page
+•
+check if force to scale is active (slide LED lit)
+•
+if not press SLIDE to activate it
+•
+select MINOR by pressing the DOWN button.
+•
+Down LED lights up to indicate the selected minor mode
+•
+press the F button on the internal keyboard to select the base note F.
+•
+All generated patterns are now forced to F-Minor
+To turn the foce to scale function off again, enter the config pasge and press the SLIDE 
+button, so the LED is off again. Patterns will now be generated completely random again.
+Clear Pattern
+To clear pitch and time information on the selected pattern, press CLEAR + PATTERN
+Press CLEAR + TIME + PATTERN to only delete the time information.
+Press CLEAR + PITCH + PATTERN to only delete the time information.
+Pattern Copy/Paste
+A Pattern can be copied to another slot.
+CLEAR + C# + PATTERN copies the pattern data from the selected pattern slot.
+CLEAR + D# + PATTERN pastes the previously copied data to the selected pattern slot.
+CLEAR + D# + Pitch + PATTERN = paste pitch info
+CLEAR + D# + Time + PATTERN = paste time info
+RE-303 User Guide
+11
+                                
+
+===== PAGE 12 =====
+Pattern Write Mode
+Rotate Pattern Steps
+CLEAR + UP = rotate all right
+CLEAR + DOWN = rotate all left
+CLEAR + PITCH + UP = rotate pitch right
+CLEAR + PITCH + DOWN = rotate pitch left
+CLEAR + TIME + UP = rotate time right
+CLEAR + TIME + DOWN = rotate time left
+Pattern Play Mode
+Normal Mode
+            /* - Normal Mode LED lit
+             * - white notes show playing pattern (blinking)
+* - light next pattern/chain
+- pattern section
+             */
+Pitch Mode
+- led pitch
+- steps = transpose
+- acc, slide up down
+RE-303 User Guide
+12
+                                
+
+===== PAGE 13 =====
+Pattern Play Mode
+AllAccent + AllSlide
+Pitch + acc = allAccent
+Pitch + Slide = All Slide
+Transpose pattern up/down 
+Pitch + up = transpose octave down
+Pitch + down = transpose oct up
+Pitch + Note buttons = transpose semitones
+Pattern Chain
+hold down first white note/pattern button to select chain start
+then press 2nd white note/pattern button to select chain end.
+All patterns in between will be played after one another
+Chained pattern LEDs will light up, playing pattern will blink
+Track Write Mode
+Normal Mode
+RE-303 User Guide
+13
+                                
+
+===== PAGE 14 =====
+Track Write Mode
+- next/back select track step to edit
+- note buttons select assigned pattern
+- acc/slide select pattern section A/B
+- pattern chains can be assigned by holding 1st pattern button and pressing a 2nd one
+Pitch Mode
+Hold pitch -> pitch mode
+- note buttons = semitone transpose (track step transpose, independent of pattern 
+transpose value)
+- up/down => octave transpose
+Time Mode
+Hold Time => time mode
+- leds show track step repeats (1-16)
+- last step indicator => ACC,SLIDE;UP,DOWN lit
+- next/back inc/dec repeats
+- down = 1 repeat, up=2, acc=4, slide=8
+- time + clear = set current step as last step
+- note buttons select repeats (white notes 1-8, black notes = range 1-8 or 9-16)
+Clear Mode
+Clear Track
+- clear + next, then back = clear track
+RE-303 User Guide
+14
+                                
+
+===== PAGE 15 =====
+Track Write Mode
+Copying tracks
+- C# -> track copy
+- D# -> track paste
+Track Play Mode
+############# Track Play ###################
+- leds show playing/active pattern
+- hold tap/next => show playing track step (realtime update)
+- tap+back -> restart track
+hold pitch -> pitch mode
+- all accent, all slide
+- LEDs show current transpose value (realtime update)
+hold time -> time mode
+- leds show repeats (realtime update)
+- leds show playing/active pattern
+- hold tap/next => show playing track step (realtime update)
+- tap+back -> restart track
+RE-303 User Guide
+15
+                                
+
+===== PAGE 16 =====
+Track Play Mode
+Pitch Mode
+Pitch mode is active while the PITCH button is held down.
+- all accent, all slide
+- LEDs show current transpose value (realtime update)
+Time Mode
+hold time -> time mode
+- leds show repeats (realtime update)
+MIDI control
+While the sequencer is stopped the 303 can be played via MIDI note messages.
+Accent
+If the MIDI note on velocity >= 65  the note is played accented.
+Slide
+Legato play of 2 notes causes a slide
+SysEx
+Pattern SysEx dump
+A pattern can be send and received via SysEx to make backups on a computer or 
+sequencer. If a SysEx dump is received while in pattern write mode, the data will be 
+written to the currently active pattern. A pattern SysEx dump always sends the currently
+active pattern.
+To send out a pattern SysEx dump goto Pattern write mode, hold down the CLEAR 
+button and press F#. The pattern data will be send out via the out jack.
+RE-303 User Guide
+16
+                                
+
+===== PAGE 17 =====
+SysEx
+CLEAR + F# while in Pattern Write Mode = send pattern SysEx dump
+Track SysEx dump
+Single tracks can be saved and restored via SysEx, too. Similar to the pattern dump 
+above, goto Track Write Mode, hold down CLEAR and push G# to send out the active 
+track. If a SysEx track dump is received while in Track Write Mode, it will be written to the
+currently active track.
+CLEAR + G# while in Track Write Mode = send Track SysEx dump
+Bulk SysEx dump
+To backup the complete memory of the machine, you can send and receive SysEx Bulk 
+Dumps. Go either to Track or Pattern Write Mode and press CLEAR + A# to send out a 
+bulk dump.
+A bulk dump received while in either Pattern or Track write mode will overwrite the 
+complete memory of the machine (track and pattern data in all banks).
+A note on saving received SysEx dumps
+A received dump will first be written to the temporary memory of the machine and will 
+not be written to the internal RAM until the sequencer is stopped. So if you receive a 
+dump, you have to start and stop the sequencer to write it to non volatile memory.
+If you’ve overwritten some data by accident, you can turn off the machine without 
+stopping the sequencer to restore the previous memory content.
+Config Mode
+FUNCTION + CLEAR => config mode
+The config is saved when leaving config page (press function button again to leave)
+RE-303 User Guide
+17
+                                
+
+===== PAGE 18 =====
+Config Mode
+MIDI Channel
+DOWN = MIDI Rx channel can be selected with next/back keys. channel displayed on LEDs
+UP = MIDI TX channel can be selected with next/back keys. channel displayed on LEDs
+MIDI Rx
+C = MIDI RX on/off
+MIDI Sync Rx
+D = MIDI sync rx on/off
+MIDI Tx
+E = MIDI Tx On/off
+Timing
+F = Internal timing
+on = Original Mode
+delayed gate offs
+off = tight mode
+Gate on/off completely same length (3 clocks on, 3 off)
+Saving data
+Pattern and track data is auto saved whenever the sequencer is stopped and 
+automatically loaded on power on.
+RE-303 User Guide
+18
+                                
+
+===== PAGE 19 =====
+Firmware Update
+Firmware Update
+The firmware can be updated via MIDI SysEx. To update the firmware:
+•
+hold CLEAR while powering up
+•
+the first 4 step LEDs will light up
+•
+The unit is now ready to receive firmware via sysex
+•
+While the data is transmitted the progress is shown on the step LEDs.
+•
+Once the update is done the machine will reboot and the new firmware is ready to 
+use
+MIDI implementation chart
+Manufacturer: 
+Sonic Potions
+Model: Re-303 
+CPU
+Version: 
+1.0
+Date:
+01.16.2017
+Transmit/E
+xport
+Recognize/I
+mport
+Remarks
+1. Basic information
+MIDI channels
+1-16
+1-16
+Note numbers
+0-63
+Tx range?
+Program change
+N
+N
+Bank select response? (Yes/No)
+N
+N
+If yes, list banks utilized in remarks 
+column
+Modes supported:
+Mode 1: Omni-
+On, Poly (Yes/No)
+Mode 2: Omni-
+On, Mono 
+(Yes/No)
+Mode 3: Omni-
+Off, Poly 
+(Yes/No)
+Mode 4: Omni-
+Off, Mono 
+(Yes/No)
+RE-303 User Guide
+19
+                                
+
+===== PAGE 20 =====
+MIDI implementation chart
+Multi Mode 
+(Yes/No)
+Note-On Velocity (Yes/No)
+Y
+Y
+Only used for 
+accent.
+Note-Off Velocity (Yes/No)
+Channel Aftertouch (Yes/No)
+Poly (Key) Aftertouch (Yes/No)
+Pitch Bend (Yes/No)
+Active Sensing (Yes/No)
+System Reset (Yes/No)
+Tune Request (Yes/No)
+Universal System 
+Exclusive:
+Sample Dump 
+Standard 
+(Yes/No)
+Device Inquiry 
+(Yes/No)
+File Dump 
+(Yes/No) 
+Y
+Y
+MIDI Tuning 
+(Yes/No) 
+Master Volume 
+(Yes/No) 
+Master Balance 
+(Yes/No) 
+Notation 
+Information 
+(Yes/No) 
+Turn GM1 
+System On 
+(Yes/No) 
+Turn GM2 
+System On 
+(Yes/No) 
+Turn GM System 
+Off (Yes/No) 
+DLS-1 (Yes/No) 
+File Reference 
+(Yes/No) 
+Controller 
+RE-303 User Guide
+20
+                                
+
+===== PAGE 21 =====
+MIDI implementation chart
+Destination 
+(Yes/No) 
+Key-based 
+Instrument Ctrl 
+(Yes/No) 
+Master 
+Fine/Coarse 
+Tune (Yes/No) 
+Other Universal 
+System 
+Exclusive 
+Manufacturer or Non-Commercial 
+System Exclusive 
+Y
+Y
+NRPNs (Yes/No) 
+N
+N
+RPN 00 (Pitch Bend Sensitivity) 
+(Yes/No) 
+RPN 01 (Channel Fine Tune) 
+(Yes/No) 
+RPN 02 (Channel Coarse Tune) 
+(Yes/No) 
+RPN 03 (Tuning Program Select) 
+(Yes/No) 
+RPN 04 (Tuning Bank Select) 
+(Yes/No) 
+RPN 05 (Modulation Depth Range) 
+(Yes/No) 
+2. MIDI Timing and Synchronization 
+MIDI Clock (Yes/No) 
+Y
+Y
+Song Position Pointer (Yes/No) 
+Y
+Y
+Song Select (Yes/No) 
+Start (Yes/No) 
+Y
+Y
+Continue (Yes/No) 
+Y
+Y
+Stop (Yes/No) 
+Y
+Y
+MIDI Time Code (Yes/No) 
+MIDI Machine Control (Yes/No) 
+MIDI Show Control (Yes/No) 
+If yes, MSC Level supporte
+3. Extensions Compatibility 
+RE-303 User Guide
+21
+                                
+
+===== PAGE 22 =====
+MIDI implementation chart
+General MIDI compatible? 
+(Level(s)/No) 
+Is GM default power-up mode? 
+(Level/No) 
+DLS compatible? (Levels(s)/No) 
+(DLS File Type(s)/No) 
+Standard MIDI Files (Type(s)/No) 
+XMF Files (Type(s)/No) 
+SP-MIDI compatible? (Yes/No)
+RE-303 User Guide
+22
+                                
