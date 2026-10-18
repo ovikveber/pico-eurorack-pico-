@@ -6,6 +6,8 @@
 RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 输出，使用内部
 2.5V 基准（0-5V）；8 路 Gate 经过缓冲，跟随每个声部的音符堆栈。
 
+> **状态：开发中。** PCB 还没到，尚未上板验证；屏幕显示内容和编码器功能分配还没定。
+
 ## 功能
 
 - 8 个声部，每个声部独立 MIDI 通道（1..16，保存在 EEPROM）
@@ -82,6 +84,9 @@ docs/project-log.md            开发日志
 An RP2040 USB-MIDI to 8x CV/Gate converter. A single DAC8568 provides eight 16-bit outputs
 from its internal 2.5 V reference (0-5 V); eight buffered gate outputs follow the note stack
 of each voice.
+
+> **Status: in development.** The PCB has not arrived yet, so nothing has been verified on
+> hardware; the display contents and encoder function assignment are not decided.
 
 ## Features
 
