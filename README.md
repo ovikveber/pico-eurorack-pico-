@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | [`midi to cv`](midi%20to%20cv/README.md) | 开发中（板子未到） | RP2040 USB-MIDI 转 8 路 CV/Gate，DAC8568，1V/oct；屏幕显示和编码器功能未定，尚未上板验证 |
 | [`pico303`（OV-03开源文件）](OV-03开源文件/README.md) | 可用 | RP2350 上的 TB-303 电路级复刻，16 步音序器、LCD 界面、USB MIDI 和 CV/Gate |
-| [`电源模块`](电源模块/README.md) | 设计中 | 18V 输入，三颗 TPS5430 + LM2940/LM2990 出 +12/−12/+5V，每路 1A；TPS 原理图已完成，LDO 待接 |
+| [`电源模块`](电源模块/README.md) | PCB 设计中 | 18V 输入，三颗 TPS5430 + LM2940/LM2990 出 +12/−12/+5V，每路 1A；原理图完成，含电流检测和 10 段显示 |
 
 `pico303` 只支持 RP2350（实测 RP2040 无法运行）；原版 303 复刻的电路、外壳和仿真资料
 不在这个仓库里。
@@ -101,7 +101,7 @@ the firmware, hardware design files and the documentation needed to build and mo
 | --- | --- | --- |
 | [`midi to cv`](midi%20to%20cv/README.md) | in development (board not arrived) | RP2040 USB-MIDI to 8x CV/Gate, DAC8568, 1V/oct; display and encoder functions undecided, not yet verified on hardware |
 | [`pico303` (OV-03 open-source files)](OV-03开源文件/README.md) | working | TB-303 circuit-level clone on RP2350, 16-step sequencer, LCD UI, USB MIDI and CV/Gate |
-| [`power supply`](电源模块/README.md) | in design | 18V input, three TPS5430 pre-regulators + LM2940/LM2990 regulators (+12/−12/+5V, 1A each); TPS schematic done, LDOs next |
+| [`power supply`](电源模块/README.md) | PCB design | 18V input, three TPS5430 pre-regulators + LM2940/LM2990 regulators (+12/−12/+5V, 1A each); schematic done, current sensing and 10-segment display included |
 
 `pico303` only supports RP2350 (RP2040 was tested and does not run). The circuit, case and
 simulation files of the original 303 replica are not part of this repository.
