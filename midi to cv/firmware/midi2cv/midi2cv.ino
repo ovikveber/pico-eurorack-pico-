@@ -655,8 +655,8 @@ static void uiBuildItems() {
     uiItems[uiCount++] = { UI_RS_PITCH, 0 };
     uiItems[uiCount++] = { UI_RS_ADSR, 0 };
     uiItems[uiCount++] = { UI_RS_FXR, 0 };
-    uiItems[uiCount++] = { UI_RS_RANGE, 0 };
     uiItems[uiCount++] = { UI_RS_RANGEFINE, 0 };
+    uiItems[uiCount++] = { UI_RS_RANGE, 0 };
     uiItems[uiCount++] = { UI_RS_SCALE, 0 };
     uiItems[uiCount++] = { UI_RS_VOCT, 0 };
     uiItems[uiCount++] = { UI_RS_GATE, 0 };
@@ -971,7 +971,7 @@ static void uiRender() {
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_RANGE:
-        snprintf(buf, sizeof(buf), "RANGE  %.3f", rsRange);
+        snprintf(buf, sizeof(buf), "RANGE  %.2f", rsRange);
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_RANGEFINE:
