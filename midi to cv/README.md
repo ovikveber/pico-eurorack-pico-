@@ -69,6 +69,20 @@ DAC 通道顺序和插座顺序不是一一对应的（PCB 走线原因），以
 | V7 | DAC E (4) | GP17 |
 | V8 | DAC G (6) | GP18 |
 
+### RandomSynth 模式输出
+
+| 插座 | 信号 | 说明 |
+| --- | --- | --- |
+| 组1 CV（DAC B） | V/OCT | 1V/oct，按设置量程 1/2/5 |
+| 组2 CV（DAC D） | FX SEND | 0–5V，按 FX SEND 百分比缩放 |
+| 组3 CV（DAC F） | PAN | 0–5V，中心 2.5V，取触发小球的 X 位置 |
+| 组1 Gate（GP22） | GATE | 跟随触发音符的 gate 长度，极性可设 |
+| 组2 Gate（GP21） | TRIG | 20ms 触发，极性可设 |
+
+其余组3/4 的 Gate、组4 CV 在 Random 模式保持关闭/0V。VCV 版源码和插件在：
+<https://github.com/ovikveber/RandomSynth-VCV>。子波规则：只有初始波能在墙上生成
+**1 个子波**，子波不再继续生成。
+
 ## 编译
 
 Arduino IDE 2.x + Earle Philhower RP2040 核心。本板是 16MB flash 的 RP2040，
@@ -81,7 +95,7 @@ rp2040:rp2040:generic:flash=16777216_0,boot2=boot2_w25q128jvxq_4_padded_checksum
 依赖库：Adafruit TinyUSB、EEPROM（RP2040 核心自带）。
 
 固件运行时把 CPU 设到 **420MHz**（1.3V，PLL/时钟源校验，失败回退 125MHz），
-屏幕 SCLK **62.5MHz**。`firmware/oc_test` 是超频验证工具：实测 420/432MHz 稳定，
+屏幕 SCLK **52.5MHz**。`firmware/oc_test` 是超频验证工具：实测 420/432MHz 稳定，
 436MHz 起会复位或挂死；500MHz 是 `clock_get_hz` 假象，实际停在 48MHz/ROSC。
 
 ## 校准
@@ -193,6 +207,20 @@ the firmware is the reference:
 | V6 | DAC C (2) | GP16 |
 | V7 | DAC E (4) | GP17 |
 | V8 | DAC G (6) | GP18 |
+
+### RandomSynth mode outputs
+
+| Jack | Signal | Notes |
+| --- | --- | --- |
+| Group 1 CV (DAC B) | V/OCT | 1 V/oct, scaled by the 1/2/5 range setting |
+| Group 2 CV (DAC D) | FX SEND | 0–5 V, scaled by the FX SEND percentage |
+| Group 3 CV (DAC F) | PAN | 0–5 V, 2.5 V center, from the triggering ball's X position |
+| Group 1 Gate (GP22) | GATE | Gate length follows the note, polarity configurable |
+| Group 2 Gate (GP21) | TRIG | 20 ms trigger, polarity configurable |
+
+The remaining group 3/4 gates and group 4 CV stay low/0 V in Random mode. VCV source and
+plugin: <https://github.com/ovikveber/RandomSynth-VCV>. Wave rule: only the initial wave
+may create **one child wave** at a wall; child waves never spawn further waves.
 
 ## Build
 
