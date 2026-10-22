@@ -18,17 +18,19 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
 - ST7789 240×240 单列可滚动 UI：
   - MIDI 模式：V1–V8、GATE、V/OCT，共 10 行；通道行有蓝色通道条和 gate 指示灯
   - Clock 模式（IO24）：组1–4 八个插孔=C1–C8，组5–8 仍是 MIDI V5–V8
-  - RandomSynth 模式（IO23）：全屏粒子场地，底部小字参数；编码器默认调场地大小，
-    按下进入设置页
+  - RandomSynth 模式（IO23）：全屏粒子场地；底部左侧只显示 KNOB 绑定，右侧显示
+    OUT 音名、GATE/TRIG ON/OFF；编码器默认调场地大小，按下进入设置页
 - EC11 编码器：旋转选行（1px 蓝框），按下进入编辑（橙框），再按退出并保存
-- Clock：BPM 20–300 + docB PwmClock 的 24 个分数分频；PLAY 行按编码器启动/暂停
+- Clock：PLAY 行在列表最顶上；BPM 20–300 + docB PwmClock 的 24 个分数分频
 - Clock 默认暂停；MIDI Start/Stop/Continue 也可控制；无 RUN/RESET 硬件输出
 - RandomSynth：12 球起，碰撞生成 V/OCT、GATE、TRIG、FX；设置里有球大小/速度、
   波形、音高范围/音阶、PITCH/ADSR/FX 比例、加球、加速器、重置和 SHAPE
 - RandomSynth 输出：**G1 CV=V/OCT，G2 CV=FX SEND，G1 Gate=GATE，G2 Gate=TRIG**
   （每组只有 1 个 DAC CV + 1 个 Gate，所以 FX 放在 G2 CV）
-- RandomSynth 设置：V/OCT 量程 1/2/5、GATE/TRIG 极性、FX SEND 0–100% 可调；
+- RandomSynth 设置：V/OCT 量程 1/2/5、GATE/TRIG 极性、FX SEND 可调；
   BIND 行可把任意参数绑定到主页面编码器（主页面只能绑一个）
+- RandomSynth 连续参数在 UI 上统一为 **0.00–1.00**（最大/最小效果不变）；
+  场地高度加到 210px，小球碰撞有更明显的发光/闪白
 - IO23 短按进入 Random；如果 IO23 未接/失效，**长按 IO24 约 0.8 秒**也可进入/退出 Random
 - 编码器使用 GPIO 中断；指示灯只在状态变化时局部刷新；MIDI 模式不注册 clock 定时器
 - RP2040 420MHz（1.3V，PLL/时钟源校验；失败回退 125MHz）
@@ -132,19 +134,22 @@ of each voice.
   - MIDI mode: V1–V8, GATE, V/OCT (10 rows); channel rows have a blue bar and gate LED
   - Clock mode (IO24): groups 1–4's eight jacks = C1–C8,
     groups 5–8 remain MIDI V5–V8
-  - RandomSynth mode (IO23): full-screen particle field with small parameters below;
+  - RandomSynth mode (IO23): full-screen particle field; the bottom-left shows only
+    the KNOB binding, the bottom-right shows OUT note plus GATE/TRIG ON/OFF;
     the encoder adjusts field size by default, press to open the settings page
 - EC11 encoder: rotate to select a row (1px blue box), press to edit (orange box),
   press again to exit and save
-- Clock: BPM 20–300 + the 24 docB PwmClock ratios; the PLAY row starts/pauses
+- Clock: the PLAY row is at the very top; BPM 20–300 + the 24 docB PwmClock ratios
 - Clock defaults to paused; MIDI Start/Stop/Continue also work; no RUN/RESET hardware out
 - RandomSynth: starts with 12 balls; collisions produce V/OCT, GATE, TRIG and FX.
   Settings cover ball size/speed, waves, pitch range/scale, PITCH/ADSR/FX ratios,
   add-ball, booster, reset and SHAPE
 - RandomSynth outputs: **G1 CV=V/OCT, G2 CV=FX SEND, G1 Gate=GATE, G2 Gate=TRIG**
   (each group has only one DAC CV + one gate, so FX goes to the G2 CV jack)
-- RandomSynth settings: V/OCT range 1/2/5, GATE/TRIG polarity and FX SEND 0–100%.
+- RandomSynth settings: V/OCT range 1/2/5, GATE/TRIG polarity and FX SEND.
   The BIND row binds any parameter to the main-page encoder (one at a time)
+- RandomSynth continuous values display as **0.00–1.00** (min/max effect unchanged);
+  the field is now 210 px high and collision glow/flash is stronger
 - IO23 short press enters Random; if IO23 is missing/dead, **hold IO24 ~0.8 s** instead
 - Encoder runs on GPIO interrupts; LEDs update locally on change; MIDI mode has no clock timer
 - RP2040 at 420 MHz (1.3 V, PLL/clock-source verified; falls back to 125 MHz)

@@ -71,7 +71,7 @@
       - C1=组1 Gate，C2=组1 CV，C3=组2 Gate，C4=组2 CV，
         C5=组3 Gate，C6=组3 CV，C7=组4 Gate，C8=组4 CV
     - 组5–8 仍是 MIDI **V5–V8**
-    - 单列列表：C1–C8、V5–V8、PLAY、BPM、GATE、V/OCT（共 16 行）
+    - 单列列表：PLAY 在最顶，然后 C1–C8、V5–V8、BPM、GATE、V/OCT（共 16 行）
     - Clock 分频用 docB PwmClock 的 **24 个分数值**（16/1 … 1/128），
       主 tempo 为 **BPM 20–300**，周期 = 60/BPM × 分数拍数
     - **PLAY 行**：选中后按编码器启动/暂停；默认暂停，PLAY 灯灭
@@ -79,8 +79,9 @@
     - USB MIDI Start/Stop/Continue 也可控制 clock（只在 clock 模式生效）
     - 无 RUN/RESET 硬件输出；组1 的两个插孔已改成 clock
   - **RANDOM 模式（IO23 进入/退出，移植 RandomSynth-VCV）**：
-    - 全屏粒子场地（240×190），底部 5 行小字显示全部参数和 KNOB 绑定
+    - 全屏粒子场地（240×210）；底部左侧只留 KNOB 绑定，右侧 OUT 音名/GATE/TRIG 状态
     - 主页面编码器默认调 **场地大小**；按下进入设置页；设置页 BACK 返回
+    - 连续参数显示统一为 0.00–1.00，内部最大/最小效果不变（球大小最大仍是 1.6×）
     - 设置行：BACK、SHAPE、FIELD、BALL、SPEED、WAVE、W.SPD、PITCH、ADSR、
       FX RATIO、RANGE、SCALE、V/OCT、GATE、TRIG、FX SEND、+BALL、+BOOST、RESET、KNOB
     - `+BALL` 行显示当前球数，`+BOOST` 行显示加速器数量，都是按下直接执行
@@ -229,6 +230,13 @@
   - 所有参数可绑定到主页面编码器；V/OCT 1/2/5、GATE/TRIG 极性、FX SEND 可调
   - 输出：G1 CV=V/OCT、G2 CV=FX SEND、G1 Gate=GATE、G2 Gate=TRIG
   - 屏幕 30fps 全场刷新；设置页不刷场地，避免闪屏
+- **2026-10-22 v13（Random 界面/125MHz 测试/回超频）**：
+  - 先降到 125MHz/1.1V 实测 Random 可运行，然后改回 420MHz/52.5MHz
+  - Clock 列表 PLAY 移到最顶
+  - Random 场地从 190 加到 210px；底部删掉全部参数说明，只留 KNOB
+  - 底部右侧显示 OUT 音名、GATE ON/OFF、TRIG ON/OFF（TRIG 状态保持 120ms 便于看）
+  - 连续参数 UI 统一 0.00–1.00，内部 min/max 效果不变（BALL 最大仍 1.6×）
+  - 小球碰撞发光/闪白增强，碰撞场 alpha 提高
 
 ## 6. 当前状态（2026-10-22）
 - 当前固件：`firmware\midi2cv_random_20261022.uf2`

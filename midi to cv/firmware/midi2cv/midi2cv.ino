@@ -17,6 +17,7 @@ Adafruit_USBD_MIDI usb_midi;
 
 // ---------------- core clock ----------------
 #define CLK_MAGIC 0x4F56434Fu
+#define TEST_125MHZ 0
 static uint32_t gSysKhz = 125000u;
 
 static bool clockOnPllSys() {
@@ -32,13 +33,26 @@ static void setupClock() {
   watchdog_hw->scratch[0] = CLK_MAGIC;
   watchdog_hw->scratch[1] = 0;
 
+#if TEST_125MHZ
+  if (vreg_get_voltage() < VREG_VOLTAGE_1_10) {
+    vreg_set_voltage(VREG_VOLTAGE_1_10);
+    busy_wait_us_32(2000);
+  }
+#else
   if (vreg_get_voltage() < VREG_VOLTAGE_1_30) {
     vreg_set_voltage(VREG_VOLTAGE_1_30);
     busy_wait_us_32(2000);
   }
+#endif
   watchdog_start_tick(12);
   watchdog_enable(8000, false);
 
+#if TEST_125MHZ
+  (void)fallback;
+  set_sys_clock_khz(125000, true);
+  busy_wait_us_32(2000);
+  gSysKhz = 125000;
+#else
   bool ok = false;
   if (!fallback) {
     ok = set_sys_clock_khz(420000, false);
@@ -53,6 +67,7 @@ static void setupClock() {
     clockOnPllSys();
     gSysKhz = 125000;
   }
+#endif
 
   watchdog_hw->scratch[1] = gSysKhz;
   clock_configure(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS,
@@ -160,6 +175,8 @@ static float rsGateRemain = 0.0f;
 static float rsTrigRemain = 0.0f;
 static float rsCvVolts = 0.0f;
 static float rsFxVolts = 0.0f;
+static float rsNote = 60.0f;
+static uint32_t rsTrigSeenMs = 0;
 static uint32_t rsLastSim = 0;
 static uint32_t rsLastDraw = 0;
 static bool randomDirty = true;
@@ -437,8 +454,10 @@ static void rsTick() {
   for (const auto& ev : rsWorld.getEvents()) {
     rsCvVolts = (ev.note - 60.0f) / 12.0f * (float)rsVoct;
     rsFxVolts = ev.send * 5.0f * ((float)rsFxSend / 100.0f);
+    rsNote = ev.note;
     rsGateOn = true;
     rsTrigOn = true;
+    rsTrigSeenMs = millis();
     rsGateRemain = 0.05f + ev.release * (0.5f + ((float)random(0, 1000) / 1000.0f) * 1.4f);
     rsTrigRemain = 0.02f;
     if (rsGateRemain > 2.5f) rsGateRemain = 2.5f;
@@ -453,19 +472,31 @@ static int wrapIndex(int v, int n) {
   return v;
 }
 
+static float rsNorm(float v, float lo, float hi) {
+  if (hi <= lo) return 0.0f;
+  v = fminf(hi, fmaxf(lo, v));
+  return (v - lo) / (hi - lo);
+}
+
+static void rsAdjustNorm(float& v, float lo, float hi, int delta, float step = 0.01f) {
+  float n = rsNorm(v, lo, hi) + delta * step;
+  n = fminf(1.0f, fmaxf(0.0f, n));
+  v = lo + n * (hi - lo);
+}
+
 static void rsAdjustBound(int delta) {
   if (delta == 0) return;
   const int d = delta;
   switch (rsBind) {
-    case RB_FIELD: rsField = fminf(1.0f, fmaxf(0.5f, rsField + d * 0.01f)); break;
-    case RB_BALL: rsBall = fminf(1.6f, fmaxf(0.3f, rsBall + d * 0.01f)); break;
-    case RB_SPEED: rsSpeed = fminf(3.0f, fmaxf(0.1f, rsSpeed + d * 0.02f)); break;
-    case RB_WAVE: rsWave = fminf(1.5f, fmaxf(0.2f, rsWave + d * 0.01f)); break;
-    case RB_WSPD: rsWSPD = fminf(2.0f, fmaxf(0.2f, rsWSPD + d * 0.01f)); break;
-    case RB_RANGE: rsRange = fminf(8.0f, fmaxf(0.5f, rsRange + d * 0.5f)); break;
-    case RB_PITCH: rsPitch = fminf(100.0f, fmaxf(0.0f, rsPitch + d)); break;
-    case RB_ADSR: rsAdsr = fminf(100.0f, fmaxf(0.0f, rsAdsr + d)); break;
-    case RB_FXR: rsFxRatio = fminf(100.0f, fmaxf(0.0f, rsFxRatio + d)); break;
+    case RB_FIELD: rsAdjustNorm(rsField, 0.5f, 1.0f, d); break;
+    case RB_BALL: rsAdjustNorm(rsBall, 0.3f, 1.6f, d); break;
+    case RB_SPEED: rsAdjustNorm(rsSpeed, 0.1f, 3.0f, d); break;
+    case RB_WAVE: rsAdjustNorm(rsWave, 0.2f, 1.5f, d); break;
+    case RB_WSPD: rsAdjustNorm(rsWSPD, 0.2f, 2.0f, d); break;
+    case RB_RANGE: rsAdjustNorm(rsRange, 0.5f, 8.0f, d); break;
+    case RB_PITCH: rsAdjustNorm(rsPitch, 0.0f, 100.0f, d); break;
+    case RB_ADSR: rsAdjustNorm(rsAdsr, 0.0f, 100.0f, d); break;
+    case RB_FXR: rsAdjustNorm(rsFxRatio, 0.0f, 100.0f, d); break;
     case RB_SCALE: rsScale = (uint8_t)wrapIndex((int)rsScale + d, SCALE_COUNT); break;
     case RB_VOCT: {
       static const uint8_t V[3] = { 1, 2, 5 };
@@ -475,7 +506,12 @@ static void rsAdjustBound(int delta) {
     }
     case RB_GATE: rsGateInv ^= 1; break;
     case RB_TRIG: rsTrigInv ^= 1; break;
-    case RB_FXSEND: rsFxSend = (uint8_t)constrain((int)rsFxSend + d, 0, 100); break;
+    case RB_FXSEND: {
+      float f = rsFxSend;
+      rsAdjustNorm(f, 0.0f, 100.0f, d);
+      rsFxSend = (uint8_t)lroundf(f);
+      break;
+    }
     case RB_SHAPE: rsShape = (uint8_t)wrapIndex((int)rsShape + d, 4); break;
     default: break;
   }
@@ -615,9 +651,9 @@ static void uiBuildItems() {
     uiItems[uiCount++] = { UI_GATE, 0 };
     uiItems[uiCount++] = { UI_VOCT, 0 };
   } else {
+    uiItems[uiCount++] = { UI_PLAY, 0 };
     for (int i = 0; i < NCLK; i++) uiItems[uiCount++] = { UI_CLK, (uint8_t)i };
     for (int i = 4; i < 8; i++) uiItems[uiCount++] = { UI_CH, (uint8_t)i };
-    uiItems[uiCount++] = { UI_PLAY, 0 };
     uiItems[uiCount++] = { UI_TEMPO, 0 };
     uiItems[uiCount++] = { UI_GATE, 0 };
     uiItems[uiCount++] = { UI_VOCT, 0 };
@@ -710,15 +746,15 @@ static void uiHandleRotation(int16_t delta) {
       break;
     }
     case UI_RS_SHAPE: rsShape = (uint8_t)wrapIndex((int)rsShape + delta, 4); break;
-    case UI_RS_FIELD: rsField = fminf(1.0f, fmaxf(0.5f, rsField + delta * 0.01f)); break;
-    case UI_RS_BALL: rsBall = fminf(1.6f, fmaxf(0.3f, rsBall + delta * 0.01f)); break;
-    case UI_RS_SPEED: rsSpeed = fminf(3.0f, fmaxf(0.1f, rsSpeed + delta * 0.02f)); break;
-    case UI_RS_WAVE: rsWave = fminf(1.5f, fmaxf(0.2f, rsWave + delta * 0.01f)); break;
-    case UI_RS_WSPD: rsWSPD = fminf(2.0f, fmaxf(0.2f, rsWSPD + delta * 0.01f)); break;
-    case UI_RS_PITCH: rsPitch = fminf(100.0f, fmaxf(0.0f, rsPitch + delta)); break;
-    case UI_RS_ADSR: rsAdsr = fminf(100.0f, fmaxf(0.0f, rsAdsr + delta)); break;
-    case UI_RS_FXR: rsFxRatio = fminf(100.0f, fmaxf(0.0f, rsFxRatio + delta)); break;
-    case UI_RS_RANGE: rsRange = fminf(8.0f, fmaxf(0.5f, rsRange + delta * 0.5f)); break;
+    case UI_RS_FIELD: rsAdjustNorm(rsField, 0.5f, 1.0f, delta); break;
+    case UI_RS_BALL: rsAdjustNorm(rsBall, 0.3f, 1.6f, delta); break;
+    case UI_RS_SPEED: rsAdjustNorm(rsSpeed, 0.1f, 3.0f, delta); break;
+    case UI_RS_WAVE: rsAdjustNorm(rsWave, 0.2f, 1.5f, delta); break;
+    case UI_RS_WSPD: rsAdjustNorm(rsWSPD, 0.2f, 2.0f, delta); break;
+    case UI_RS_PITCH: rsAdjustNorm(rsPitch, 0.0f, 100.0f, delta); break;
+    case UI_RS_ADSR: rsAdjustNorm(rsAdsr, 0.0f, 100.0f, delta); break;
+    case UI_RS_FXR: rsAdjustNorm(rsFxRatio, 0.0f, 100.0f, delta); break;
+    case UI_RS_RANGE: rsAdjustNorm(rsRange, 0.5f, 8.0f, delta); break;
     case UI_RS_SCALE: rsScale = (uint8_t)wrapIndex((int)rsScale + delta, SCALE_COUNT); break;
     case UI_RS_VOCT: {
       static const uint8_t V[3] = { 1, 2, 5 };
@@ -728,7 +764,12 @@ static void uiHandleRotation(int16_t delta) {
     }
     case UI_RS_GATE: rsGateInv ^= 1; break;
     case UI_RS_TRIG: rsTrigInv ^= 1; break;
-    case UI_RS_FXSEND: rsFxSend = (uint8_t)constrain((int)rsFxSend + delta, 0, 100); break;
+    case UI_RS_FXSEND: {
+      float f = rsFxSend;
+      rsAdjustNorm(f, 0.0f, 100.0f, delta);
+      rsFxSend = (uint8_t)lroundf(f);
+      break;
+    }
     case UI_RS_BIND: rsBind = (uint8_t)wrapIndex((int)rsBind + delta, RB_COUNT); break;
     default:
       break;
@@ -871,39 +912,39 @@ static void uiRender() {
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_FIELD:
-        snprintf(buf, sizeof(buf), "FIELD  %.2f", rsField);
+        snprintf(buf, sizeof(buf), "FIELD  %.2f", rsNorm(rsField, 0.5f, 1.0f));
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_BALL:
-        snprintf(buf, sizeof(buf), "BALL   %.2f", rsBall);
+        snprintf(buf, sizeof(buf), "BALL   %.2f", rsNorm(rsBall, 0.3f, 1.6f));
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_SPEED:
-        snprintf(buf, sizeof(buf), "SPEED  %.2f", rsSpeed);
+        snprintf(buf, sizeof(buf), "SPEED  %.2f", rsNorm(rsSpeed, 0.1f, 3.0f));
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_WAVE:
-        snprintf(buf, sizeof(buf), "WAVE   %.2f", rsWave);
+        snprintf(buf, sizeof(buf), "WAVE   %.2f", rsNorm(rsWave, 0.2f, 1.5f));
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_WSPD:
-        snprintf(buf, sizeof(buf), "W.SPD  %.2f", rsWSPD);
+        snprintf(buf, sizeof(buf), "W.SPD  %.2f", rsNorm(rsWSPD, 0.2f, 2.0f));
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_PITCH:
-        snprintf(buf, sizeof(buf), "PITCH  %d", (int)lroundf(rsPitch));
+        snprintf(buf, sizeof(buf), "PITCH  %.2f", rsNorm(rsPitch, 0.0f, 100.0f));
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_ADSR:
-        snprintf(buf, sizeof(buf), "ADSR   %d", (int)lroundf(rsAdsr));
+        snprintf(buf, sizeof(buf), "ADSR   %.2f", rsNorm(rsAdsr, 0.0f, 100.0f));
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_FXR:
-        snprintf(buf, sizeof(buf), "FX RAT %d", (int)lroundf(rsFxRatio));
+        snprintf(buf, sizeof(buf), "FX RAT %.2f", rsNorm(rsFxRatio, 0.0f, 100.0f));
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_RANGE:
-        snprintf(buf, sizeof(buf), "RANGE  %.1f", rsRange);
+        snprintf(buf, sizeof(buf), "RANGE  %.2f", rsNorm(rsRange, 0.5f, 8.0f));
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_SCALE:
@@ -923,7 +964,7 @@ static void uiRender() {
                     sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_FXSEND:
-        snprintf(buf, sizeof(buf), "FX SEND %d", rsFxSend);
+        snprintf(buf, sizeof(buf), "FX SEND %.2f", rsNorm((float)rsFxSend, 0.0f, 100.0f));
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_BALLS:
@@ -1014,6 +1055,15 @@ static uint16_t rsScaleColor(uint16_t c, float f) {
   return (uint16_t)((r << 11) | (g << 5) | b);
 }
 
+static void rsNoteText(char* out, size_t n) {
+  static const char* names[] = { "C", "C#", "D", "D#", "E", "F",
+                                 "F#", "G", "G#", "A", "A#", "B" };
+  int midi = (int)lroundf(rsNote);
+  if (midi < 0) midi = 0;
+  if (midi > 127) midi = 127;
+  snprintf(out, n, "%s%d", names[midi % 12], midi / 12 - 1);
+}
+
 static void rsRenderMain() {
   const uint16_t bg     = rgb565(4, 5, 8);
   const uint16_t dim    = rgb565(128, 136, 148);
@@ -1028,7 +1078,7 @@ static void rsRenderMain() {
     uint16_t c = rsKindColor(f.kind);
     displayFillCircleAlpha((int)lroundf(f.pos.x), (int)lroundf(f.pos.y),
                            (int)lroundf(f.radius), c,
-                           (uint8_t)constrain((int)(f.strength * 34.0f), 0, 60));
+                           (uint8_t)constrain((int)(f.strength * 55.0f), 0, 90));
   }
 
   for (int i = 0; i < rsSnap.waveCount; i++) {
@@ -1076,33 +1126,43 @@ static void rsRenderMain() {
     uint16_t c = rsKindColor(b.kind);
     int br = (int)lroundf(b.radius);
     if (br < 1) br = 1;
-    displayFillCircleAlpha((int)lroundf(b.pos.x), (int)lroundf(b.pos.y),
-                           (int)(b.radius * 2.6f), c, 30);
-    displayFillCircle((int)lroundf(b.pos.x), (int)lroundf(b.pos.y), br,
-                      b.flash > 0.0f ? rsMixColor(c, rgb565(255, 255, 255), 0.55f) : c);
-    displayDrawCircle((int)lroundf(b.pos.x), (int)lroundf(b.pos.y), br,
-                      rgb565(230, 235, 240), 1);
+    float flash = fminf(1.0f, fmaxf(0.0f, b.flash / 0.22f));
+    int cx = (int)lroundf(b.pos.x);
+    int cy = (int)lroundf(b.pos.y);
+    int glowR = (int)(b.radius * (2.6f + 0.7f * flash));
+    uint8_t glowA = (uint8_t)(40.0f + 110.0f * flash);
+    displayFillCircleAlpha(cx, cy, glowR, c, glowA);
+    if (flash > 0.02f)
+      displayDrawCircle(cx, cy, glowR, rsMixColor(c, rgb565(255, 255, 255), 0.55f), 1);
+    displayFillCircle(cx, cy, br,
+                      b.flash > 0.0f ? rsMixColor(c, rgb565(255, 255, 255), 0.35f + 0.45f * flash) : c);
+    displayDrawCircle(cx, cy, br, rgb565(230, 235, 240), 1);
   }
 
-  displayFillRect(0, 190, 240, 50, rgb565(5, 7, 10));
-  displayFillRect(0, 190, 240, 1, rgb565(38, 44, 54));
+  const int bottomY = (int)World::fieldH;
+  displayFillRect(0, bottomY, 240, 240 - bottomY, rgb565(5, 7, 10));
+  displayFillRect(0, bottomY, 240, 1, rgb565(38, 44, 54));
 
-  char l[48];
-  snprintf(l, sizeof(l), "B%02d BO%02d %s R%.1f",
-           rsSnap.ballCount, rsSnap.boosterCount, SHAPE_NAMES[rsShape], rsRange);
-  displayText(2, 192, l, dim, 1);
-  snprintf(l, sizeof(l), "%s V%d G%c T%c FX%d",
-           scaleName(rsScale), rsVoct, rsGateInv ? '-' : '+',
-           rsTrigInv ? '-' : '+', rsFxSend);
-  displayText(2, 200, l, dim, 1);
-  snprintf(l, sizeof(l), "F%.2f BAL%.2f SPD%.2f", rsField, rsBall, rsSpeed);
-  displayText(2, 208, l, dim, 1);
-  snprintf(l, sizeof(l), "WAV%.2f WSP%.2f P%d A%d FX%d",
-           rsWave, rsWSPD, (int)lroundf(rsPitch), (int)lroundf(rsAdsr),
-           (int)lroundf(rsFxRatio));
-  displayText(2, 216, l, dim, 1);
+  char l[32];
   snprintf(l, sizeof(l), "KNOB %s", RB_NAMES[rsBind]);
-  displayText(2, 226, l, accent, 1);
+  displayText(2, bottomY + 10, l, accent, 1);
+
+  auto rightText = [](int y, const char* s, uint16_t c) {
+    int x = 238 - (int)strlen(s) * 6;
+    if (x < 2) x = 2;
+    displayText(x, y, s, c, 1);
+  };
+
+  char note[8];
+  rsNoteText(note, sizeof(note));
+  snprintf(l, sizeof(l), "OUT %s", note);
+  rightText(bottomY + 1, l, accent);
+
+  bool trigShow = rsTrigOn || (rsTrigSeenMs != 0 && millis() - rsTrigSeenMs < 120u);
+  snprintf(l, sizeof(l), "GATE %s", rsGateOn ? "ON" : "OFF");
+  rightText(bottomY + 10, l, rsGateOn ? rgb565(80, 220, 120) : dim);
+  snprintf(l, sizeof(l), "TRIG %s", trigShow ? "ON" : "OFF");
+  rightText(bottomY + 19, l, trigShow ? rgb565(255, 164, 58) : dim);
 
   displayFlush();
 }
@@ -1302,7 +1362,7 @@ void setup() {
   dacInit();
   updateOutputs();
   displayInit();
-  displaySetSclkForSys(52.5f, gSysKhz);
+  displaySetSclkForSys(gSysKhz >= 400000u ? 52.5f : 62.5f, gSysKhz);
 
   uiBuildItems();
 }
