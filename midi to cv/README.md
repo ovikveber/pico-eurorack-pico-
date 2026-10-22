@@ -14,12 +14,15 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
 ## 功能
 
 - 8 个声部，每个声部独立 MIDI 通道（1..16，保存在 EEPROM）
-- 1V/oct CV 输出（V/oct 和 Gate 极性目前固定为 1V/oct、正极性）
-- ST7789 240×240 屏幕：列出 V1..V8 和当前通道
-- EC11 编码器：旋转选行（蓝框），按下进入编辑（橙框），旋转改通道，再按退出并保存
-- 编码器使用 GPIO 中断，屏幕刷新期间不会漏步
+- CV 支持 **1V / 2V / 5V per octave**；Gate 极性 **+ / -** 可设置
+- ST7789 240×240 单列可滚动 UI：
+  - MIDI 模式：V1–V8、GATE、V/OCT，共 10 行；通道行有蓝色通道条和 gate 指示灯
+  - Clock 模式（IO24）：组1=RUN/RESET，组2–4 六个插孔=C1–C6，组5–8 仍是 MIDI V5–V8
+- EC11 编码器：旋转选行（1px 蓝框），按下进入编辑（橙框），再按退出并保存
+- Clock：BPM 20–300 + docB PwmClock 的 24 个分数分频，RUN=TRIG/HOLD，RESET 启动脉冲
+- 编码器使用 GPIO 中断，屏幕刷新期间不会漏步；指示灯只在状态变化时局部刷新
 - RP2040 420MHz（1.3V，PLL/时钟源校验；失败回退 125MHz）
-- ST7789 SCLK 62.5MHz（12mA + fast slew），整帧约 14.75ms，UI 约 60fps
+- ST7789 SCLK 62.5MHz（12mA + fast slew），整帧约 14.75ms
 - USB 描述符固定，避免 Windows 和 FL Studio 累积幽灵设备
 - 私有数字总线（GP14）已预留，尚未实现
 
@@ -112,13 +115,17 @@ of each voice.
 ## Features
 
 - 8 voices, each with its own MIDI channel (1..16, stored in EEPROM)
-- 1V/oct CV output (V/oct and gate polarity are fixed at 1V/oct, active-high for now)
-- ST7789 240x240 UI listing V1..V8 and their MIDI channels
-- EC11 encoder: rotate to select a row (blue box), press to edit (orange box), rotate to
-  change the channel, press again to exit and save
-- Encoder runs on GPIO interrupts, so screen updates do not drop steps
+- CV range **1V / 2V / 5V per octave**; gate polarity **+ / -**
+- ST7789 240x240 single-column scrolling UI:
+  - MIDI mode: V1–V8, GATE, V/OCT (10 rows); channel rows have a blue bar and gate LED
+  - Clock mode (IO24): group 1 = RUN/RESET, groups 2–4's six jacks = C1–C6,
+    groups 5–8 remain MIDI V5–V8
+- EC11 encoder: rotate to select a row (1px blue box), press to edit (orange box),
+  press again to exit and save
+- Clock: BPM 20–300 + the 24 docB PwmClock ratios, RUN = TRIG/HOLD, RESET pulse on start
+- Encoder runs on GPIO interrupts; LEDs only update locally when their state changes
 - RP2040 at 420 MHz (1.3 V, PLL/clock-source verified; falls back to 125 MHz)
-- ST7789 SCLK 62.5 MHz (12 mA + fast slew), full frame ~14.75 ms, UI ~60 fps
+- ST7789 SCLK 62.5 MHz (12 mA + fast slew), full frame ~14.75 ms
 - Fixed USB descriptors so Windows and FL Studio do not accumulate ghost devices
 - Private digital bus (GP14) is reserved but not implemented yet
 

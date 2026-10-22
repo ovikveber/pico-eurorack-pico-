@@ -61,14 +61,29 @@
 - **引脚**：DAC SCLK=GP28/DIN=GP27/SYNC=GP26；Gate=GP22,21,20,19,18,17,16,15；Enc A/B/SW=GP13/12/11。
 - **每路映射**（真实，来自 PCB）：`gatePin[]={22,21,20,19,15,16,17,18}`，
   `dacCh[]={B,D,F,H,A,C,E,G}`（见"4.5"）。CV=1V/oct（`NOTE0=24`=0V）；16bit=5.0V。
-- 编码器 UI：
-  - 导航：旋转移动选择行（蓝框），列出 V1..V8 和当前 `CH n`
-  - 按下进入编辑（橙框 + 深色底），旋转改通道 1..16，再按退出并写入 EEPROM
-  - GPIO 中断读编码器，屏幕刷新期间不漏步
+- 编码器 UI（单列，可滚动，行高 22px，行间 1px 分隔线）：
+  - 导航：旋转选择行（1px 蓝框）；按下进入编辑（橙框）；再按退出并保存
+  - **MIDI 模式（10 行）**：V1–V8 + GATE + V/OCT
+    - 通道行：`Vn`、蓝色通道条、`CH n`、12px gate 指示灯
+    - GATE 显示 **+ / -**；V/OCT 只支持 **1 / 2 / 5**（8V/oct 无法输出）
+  - **CLOCK 模式（IO24 进入/退出）**：
+    - 组1：Gate=**RUN**，CV=**RESET**
+    - 组2–4 的 6 个插孔 = **C1–C6**
+      - C1=组2 Gate，C2=组2 CV，C3=组3 Gate，C4=组3 CV，
+        C5=组4 Gate，C6=组4 CV
+    - 组5–8 仍是 MIDI **V5–V8**
+    - 单列列表：C1–C6、V5–V8、RUN/RST 状态行、BPM、GATE、V/OCT、RUN
+    - Clock 分频用 docB PwmClock 的 **24 个分数值**（16/1 … 1/128），
+      主 tempo 为 **BPM 20–300**，周期 = 60/BPM × 分数拍数
+    - RUN 模式 **TRIG / HOLD**；进入 clock 时 RUN 按模式启动，RESET 发 100ms 脉冲
+    - RUN/RST 状态行单独显示两个 12px 指示灯
+  - GPIO 中断读编码器；IO23 预留未用
 - ST7789 240×240：PIO SPI + DMA，**420MHz CPU / 62.5MHz SCLK**，
   SCK/MOSI 12mA + fast slew，`MADCTL=0x60`（90° 方向）
-- V/oct 和 Gate 极性暂时固定为 **1V/oct、正极性**，没有 UI（后续加第二页）
-- **待做**：私有总线(PIO UART, GP14)、右半 5–8 组、V/oct/极性 UI、DAC 校准。
+- 屏幕闪烁修复：不再持续整帧刷新；LED 仅在状态变化时用局部 12px 小方块刷新，
+  每个局部窗口后加 20µs 稳定时间；MIDI 空闲和 clock 模式均不再闪
+- 所有设置（通道、GATE、V/OCT、BPM、6 个分频、RUN 模式）写入 EEPROM
+- **待做**：私有总线(PIO UART, GP14)、右半 5–8 组、DAC 校准。
 
 ## 4. 进度
 ### 已完成
@@ -180,6 +195,11 @@
   - 屏幕 **62.5MHz**（420÷2÷3.36），SCK/MOSI 12mA + fast slew，颜色正常
   - 70MHz 起偏红/数据错误，84/105 不可用；62.5 是这块屏的实际可用上限
   - 清理所有串口调试/计时/BRINGUP/超频阶梯；`oc_test` 保留为独立验证工具
+- **2026-10-22 v10（clock 模式 + UI 收尾）**：
+  - IO24 进入/退出 clock；组1=RUN/RESET，组2–4 六个插孔=C1–C6，组5–8=MIDI V5–V8
+  - 主 BPM + 24 个 docB 风格分频；RUN=TRIG/HOLD
+  - UI 单列可滚动；MIDI 10 行、clock 15 行；蓝色通道条、12px 指示灯、1px 细框
+  - 修复屏幕间歇红闪/重启：去掉持续整帧刷新，LED 仅在变化时局部刷新
 
 ## 6. 当前状态（2026-10-22）
 - 当前固件：`firmware\midi2cv_20261022_ui.uf2`
@@ -187,14 +207,16 @@
   - CPU **420MHz**（PLL 校验通过；失败回退 125MHz）
   - 屏幕 **62.5MHz SCLK**，整帧约 14.75ms，UI 约 60fps
 - 已验证：左半组1–4 CV/Gate、MIDI ch1–4、屏幕 UI、编码器选择/编辑/保存、颜色正常
+- 已验证：MIDI 空闲和 clock 模式均不再红闪/重启
+- Clock 模式：BPM 20–300，24 个分数，RUN/RESET，TRIG/HOLD，4 个 MIDI 通道仍可用
 - 未验证：右半组5–8、EEPROM 断电保持、DAC 精度、私有总线
 - 超频结论：420/432 稳定，436+ 不稳定；500 从未真正跑起来
 - 屏幕结论：62.5MHz 可用；70MHz 起颜色错误（PIO 超速，不是颜色顺序）
 
 ## 7. 下次继续
 1. 焊右半 5–8 组，逐路测 CV/Gate
-2. 断电重启，确认通道配置能从 EEPROM 恢复
-3. 给 UI 加第二页：V/oct（1/2/5/8）和 Gate 极性
+2. 断电重启，确认通道/clock 设置能从 EEPROM 恢复
+3. IO23 预留功能（用户后续定义）
 4. 私有总线（GP14，PIO UART，帧格式见 `vcv-rack/src/PrivateBus.hpp`）
 5. 快速转动若跳步，加 **200µs** 编码器消抖（不要 1ms）
 6. 需要时再做 DAC 输出精度校准

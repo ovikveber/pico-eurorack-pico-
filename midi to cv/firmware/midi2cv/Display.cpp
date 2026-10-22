@@ -1,4 +1,4 @@
-#include <Arduino.h>
+﻿#include <Arduino.h>
 #include <hardware/pio.h>
 #include <hardware/dma.h>
 #include <hardware/gpio.h>
@@ -234,6 +234,21 @@ void displayFlush() {
   lcdPushFb();
 }
 
+static uint16_t sqBuf[24 * 24] __attribute__((aligned(4)));
+
+void displayFillSquare(int x, int y, int size, uint16_t color) {
+  if (size < 1 || size > 24) return;
+  for (int i = 0; i < size * size; i++) sqBuf[i] = color;
+  lcdSetWindow(x, y, x + size - 1, y + size - 1);
+  gpio_put(PIN_DC, 1);
+  gpio_put(PIN_CS, 0);
+  dmaStart(sqBuf, (uint32_t)(size * size * 2) / 4);
+  dma_channel_wait_for_finish_blocking(dmaTx);
+  pioDrain();
+  gpio_put(PIN_CS, 1);
+  busy_wait_us_32(20);
+}
+
 void displaySetSclkForSys(float mhz, uint32_t sysKhz) {
   if (mhz < 1.0f) mhz = 1.0f;
   lcdSysHz = sysKhz * 1000u;
@@ -241,3 +256,4 @@ void displaySetSclkForSys(float mhz, uint32_t sysKhz) {
   if (lcdClkDiv < 1.0f) lcdClkDiv = 1.0f;
   if (lcdSm >= 0) pio_sm_set_clkdiv(lcdPio, lcdSm, lcdClkDiv);
 }
+
