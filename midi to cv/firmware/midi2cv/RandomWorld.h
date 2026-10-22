@@ -136,7 +136,7 @@ public:
     static constexpr float fieldX = 0.0f;
     static constexpr float fieldY = 0.0f;
     static constexpr float fieldW = 240.0f;
-    static constexpr float fieldH = 210.0f;
+    static constexpr float fieldH = 222.0f;
 
     World();
 
