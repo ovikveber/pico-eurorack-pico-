@@ -437,12 +437,12 @@ static void rsClearOutputs() {
   rsTrigRemain = 0.0f;
   rsCvVolts = 0.0f;
   rsFxVolts = 0.0f;
-  rsPanVolts = 0.0f;
+  rsPanVolts = 2.5f;
   digitalWrite(gatePin[0], rsGateInv ? HIGH : LOW);
   digitalWrite(gatePin[1], rsTrigInv ? HIGH : LOW);
   dacWriteUpdateRaw(dacCh[0], 0);
   dacWriteUpdateRaw(dacCh[1], 0);
-  dacWriteUpdateRaw(dacCh[2], 0);
+  dacWriteUpdateRaw(dacCh[2], voltsToCode(rsPanVolts));
 }
 
 static void rsTick() {
