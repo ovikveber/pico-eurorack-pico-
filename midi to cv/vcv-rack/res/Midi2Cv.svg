@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="50.8mm" height="128.5mm" viewBox="0 0 50.8 128.5">
+  <rect x="0" y="0" width="50.8" height="128.5" fill="#1b1b1b"/>
+  <rect x="1" y="1" width="48.8" height="126.5" fill="none" stroke="#3a3a3a" stroke-width="0.4"/>
+  <text x="25.4" y="8" text-anchor="middle" font-family="sans-serif" font-size="3.2" fill="#e8e8e8" font-weight="bold">OV MIDI2CV</text>
+  <text x="25.4" y="12" text-anchor="middle" font-family="sans-serif" font-size="1.8" fill="#9a9a9a">8 VOICE · 1/2/5/8 V/OCT</text>
+
+  <g font-family="sans-serif" font-size="2.1" fill="#cfcfcf" text-anchor="middle">
+    <text x="12.7" y="15.2">V1 CV</text>
+    <text x="38.1" y="15.2">V1 GATE</text>
+    <text x="12.7" y="28.2">V2 CV</text>
+    <text x="38.1" y="28.2">V2 GATE</text>
+    <text x="12.7" y="41.2">V3 CV</text>
+    <text x="38.1" y="41.2">V3 GATE</text>
+    <text x="12.7" y="54.2">V4 CV</text>
+    <text x="38.1" y="54.2">V4 GATE</text>
+    <text x="12.7" y="67.2">V5 CV</text>
+    <text x="38.1" y="67.2">V5 GATE</text>
+    <text x="12.7" y="80.2">V6 CV</text>
+    <text x="38.1" y="80.2">V6 GATE</text>
+    <text x="12.7" y="93.2">V7 CV</text>
+    <text x="38.1" y="93.2">V7 GATE</text>
+    <text x="12.7" y="106.2">V8 CV</text>
+    <text x="38.1" y="106.2">V8 GATE</text>
+  </g>
+
+  <g fill="#2b2b2b" stroke="#555" stroke-width="0.35">
+    <circle cx="12.7" cy="18" r="3.6"/>
+    <circle cx="38.1" cy="18" r="3.6"/>
+    <circle cx="12.7" cy="31" r="3.6"/>
+    <circle cx="38.1" cy="31" r="3.6"/>
+    <circle cx="12.7" cy="44" r="3.6"/>
+    <circle cx="38.1" cy="44" r="3.6"/>
+    <circle cx="12.7" cy="57" r="3.6"/>
+    <circle cx="38.1" cy="57" r="3.6"/>
+    <circle cx="12.7" cy="70" r="3.6"/>
+    <circle cx="38.1" cy="70" r="3.6"/>
+    <circle cx="12.7" cy="83" r="3.6"/>
+    <circle cx="38.1" cy="83" r="3.6"/>
+    <circle cx="12.7" cy="96" r="3.6"/>
+    <circle cx="38.1" cy="96" r="3.6"/>
+    <circle cx="12.7" cy="109" r="3.6"/>
+    <circle cx="38.1" cy="109" r="3.6"/>
+    <circle cx="25.4" cy="114" r="3.6"/>
+  </g>
+
+  <text x="25.4" y="120" text-anchor="middle" font-family="sans-serif" font-size="1.9" fill="#cfcfcf">PRIVATE BUS (POLY 16CH)</text>
+  <text x="25.4" y="125" text-anchor="middle" font-family="sans-serif" font-size="1.7" fill="#777">RIGHT-CLICK: MIDI / CH / V-OCT</text>
+</svg>

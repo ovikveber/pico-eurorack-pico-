@@ -1,0 +1,17 @@
+{
+  "slug": "OV-MIDI2CV",
+  "name": "OV MIDI to CV",
+  "version": "2.0.0",
+  "license": "GPL-3.0-or-later",
+  "brand": "OV",
+  "author": "OV",
+  "description": "VCV Rack 2 port of the OV-MIDI 8-voice MIDI to CV/Gate module",
+  "modules": [
+    {
+      "slug": "Midi2Cv",
+      "name": "MIDI to CV",
+      "description": "8-voice MIDI to CV/Gate + a polyphonic private bus port for the VCO; per-voice MIDI channel, note stack, 1/2/5/8 V/oct, gate polarity",
+      "tags": ["MIDI", "Utility", "Polyphonic"]
+    }
+  ]
+}
