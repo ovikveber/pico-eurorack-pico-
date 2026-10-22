@@ -83,7 +83,7 @@
     - 主页面编码器默认调 **场地大小**；按下进入设置页；设置页 BACK 返回
     - 连续参数显示统一为 0.00–1.00，内部最大/最小效果不变（球大小最大仍是 1.6×）
     - 设置行：BACK、SHAPE、FIELD、BALL、SPEED、WAVE、W.SPD、PITCH、ADSR、
-      FX RATIO、RANGE、SCALE、V/OCT、GATE、TRIG、FX SEND、+BALL、+BOOST、RESET、KNOB
+      FX RATIO、RANGE、FINE、SCALE、V/OCT、GATE、TRIG、FX SEND、+BALL、+BOOST、RESET、KNOB
     - `+BALL` 行显示当前球数，`+BOOST` 行显示加速器数量，都是按下直接执行
     - RESET 与 MIDI 的 PLAY/RUN 行一样，选中后直接按编码器重置
     - BIND/KNOB 行可把任意参数绑定到主页面编码器，主页面只绑一个
@@ -238,6 +238,10 @@
   - 去掉碰撞光晕的描边圈，只保留柔和自身发光/闪白
   - 连续参数 UI 统一 0.00–1.00，内部 min/max 效果不变（BALL 最大仍 1.6×）
   - 小球碰撞发光/闪白增强，碰撞场 alpha 提高
+- **2026-10-22 v14（RANGE FINE / 光晕收紧）**：
+  - RANGE 显示实际八度，保留 3 位小数；EEPROM 用 milli-octave 存精度
+  - 新增 FINE 按钮行：OFF=0.5 八度步进，ON=0.01 八度微调
+  - 光晕半径缩到小球约 1.35×（碰撞最大约 1.6×），只保留自身发光/闪白
 
 ## 6. 当前状态（2026-10-22）
 - 当前固件：`firmware\midi2cv_random_20261022.uf2`

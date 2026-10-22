@@ -190,6 +190,7 @@ static uint8_t rsGateInv = 0;
 static uint8_t rsTrigInv = 0;
 static uint8_t rsFxSend = 100;
 static uint8_t rsScale = 0;
+static uint8_t rsRangeFine = 0;
 static float rsField = 1.0f;
 static float rsBall = 0.55f;
 static float rsSpeed = 1.0f;
@@ -210,6 +211,8 @@ struct Cfg {
   uint8_t div[NCLK];
   uint8_t rsShape, rsBind, rsVoct, rsGate, rsTrig, rsFxSend, rsScale;
   uint8_t rsField, rsBall, rsSpeed, rsWave, rsWSPD, rsRange, rsPitch, rsAdsr, rsFx;
+  uint8_t rsRangeFine;
+  uint16_t rsRangeMilli;
 };
 static bool cfgDirty = false;
 static uint32_t cfgMs = 0;
@@ -224,6 +227,7 @@ static void cfgLoad() {
     c.rsGate = 0; c.rsTrig = 0; c.rsFxSend = 100; c.rsScale = 0;
     c.rsField = 100; c.rsBall = 55; c.rsSpeed = 100; c.rsWave = 50;
     c.rsWSPD = 65; c.rsRange = 8; c.rsPitch = 50; c.rsAdsr = 25; c.rsFx = 25;
+    c.rsRangeFine = 0; c.rsRangeMilli = 4000;
     c.magic = 0x5F;
   }
   for (int v = 0; v < NVOICE; v++) chan[v] = (c.ch[v] >= 1 && c.ch[v] <= 16) ? c.ch[v] : (v + 1);
@@ -244,7 +248,11 @@ static void cfgLoad() {
   rsSpeed = constrain(c.rsSpeed, 10, 300) / 100.0f;
   rsWave = constrain(c.rsWave, 20, 150) / 100.0f;
   rsWSPD = constrain(c.rsWSPD, 20, 200) / 100.0f;
-  rsRange = constrain(c.rsRange, 1, 16) * 0.5f;
+  rsRangeFine = (c.rsRangeFine == 1) ? 1 : 0;
+  if (c.rsRangeMilli >= 500 && c.rsRangeMilli <= 8000)
+    rsRange = c.rsRangeMilli / 1000.0f;
+  else
+    rsRange = constrain(c.rsRange, 1, 16) * 0.5f;
   rsPitch = constrain(c.rsPitch, 0, 100);
   rsAdsr = constrain(c.rsAdsr, 0, 100);
   rsFxRatio = constrain(c.rsFx, 0, 100);
@@ -267,6 +275,8 @@ static void cfgSave() {
   c.rsPitch = (uint8_t)constrain((int)lroundf(rsPitch), 0, 100);
   c.rsAdsr = (uint8_t)constrain((int)lroundf(rsAdsr), 0, 100);
   c.rsFx = (uint8_t)constrain((int)lroundf(rsFxRatio), 0, 100);
+  c.rsRangeFine = rsRangeFine ? 1 : 0;
+  c.rsRangeMilli = (uint16_t)constrain((int)lroundf(rsRange * 1000.0f), 500, 8000);
   EEPROM.put(0, c); EEPROM.commit();
 }
 
@@ -484,6 +494,15 @@ static void rsAdjustNorm(float& v, float lo, float hi, int delta, float step = 0
   v = lo + n * (hi - lo);
 }
 
+static void rsAdjustRange(int delta) {
+  if (rsRangeFine) {
+    rsRange = fminf(8.0f, fmaxf(0.5f, rsRange + delta * 0.01f));
+  } else {
+    rsRange = roundf((rsRange + delta * 0.5f) * 2.0f) * 0.5f;
+    rsRange = fminf(8.0f, fmaxf(0.5f, rsRange));
+  }
+}
+
 static void rsAdjustBound(int delta) {
   if (delta == 0) return;
   const int d = delta;
@@ -493,7 +512,7 @@ static void rsAdjustBound(int delta) {
     case RB_SPEED: rsAdjustNorm(rsSpeed, 0.1f, 3.0f, d); break;
     case RB_WAVE: rsAdjustNorm(rsWave, 0.2f, 1.5f, d); break;
     case RB_WSPD: rsAdjustNorm(rsWSPD, 0.2f, 2.0f, d); break;
-    case RB_RANGE: rsAdjustNorm(rsRange, 0.5f, 8.0f, d); break;
+    case RB_RANGE: rsAdjustRange(d); break;
     case RB_PITCH: rsAdjustNorm(rsPitch, 0.0f, 100.0f, d); break;
     case RB_ADSR: rsAdjustNorm(rsAdsr, 0.0f, 100.0f, d); break;
     case RB_FXR: rsAdjustNorm(rsFxRatio, 0.0f, 100.0f, d); break;
@@ -591,7 +610,7 @@ enum UiType : uint8_t {
   UI_CH, UI_CLK, UI_TEMPO, UI_GATE, UI_VOCT, UI_PLAY,
   UI_RS_BACK, UI_RS_SHAPE, UI_RS_FIELD, UI_RS_BALL, UI_RS_SPEED,
   UI_RS_WAVE, UI_RS_WSPD, UI_RS_PITCH, UI_RS_ADSR, UI_RS_FXR,
-  UI_RS_RANGE, UI_RS_SCALE, UI_RS_VOCT, UI_RS_GATE, UI_RS_TRIG,
+  UI_RS_RANGE, UI_RS_RANGEFINE, UI_RS_SCALE, UI_RS_VOCT, UI_RS_GATE, UI_RS_TRIG,
   UI_RS_FXSEND, UI_RS_BALLS, UI_RS_BOOST, UI_RS_RESET, UI_RS_BIND
 };
 struct UiItem { uint8_t type; uint8_t index; };
@@ -637,6 +656,7 @@ static void uiBuildItems() {
     uiItems[uiCount++] = { UI_RS_ADSR, 0 };
     uiItems[uiCount++] = { UI_RS_FXR, 0 };
     uiItems[uiCount++] = { UI_RS_RANGE, 0 };
+    uiItems[uiCount++] = { UI_RS_RANGEFINE, 0 };
     uiItems[uiCount++] = { UI_RS_SCALE, 0 };
     uiItems[uiCount++] = { UI_RS_VOCT, 0 };
     uiItems[uiCount++] = { UI_RS_GATE, 0 };
@@ -754,7 +774,7 @@ static void uiHandleRotation(int16_t delta) {
     case UI_RS_PITCH: rsAdjustNorm(rsPitch, 0.0f, 100.0f, delta); break;
     case UI_RS_ADSR: rsAdjustNorm(rsAdsr, 0.0f, 100.0f, delta); break;
     case UI_RS_FXR: rsAdjustNorm(rsFxRatio, 0.0f, 100.0f, delta); break;
-    case UI_RS_RANGE: rsAdjustNorm(rsRange, 0.5f, 8.0f, delta); break;
+    case UI_RS_RANGE: rsAdjustRange(delta); break;
     case UI_RS_SCALE: rsScale = (uint8_t)wrapIndex((int)rsScale + delta, SCALE_COUNT); break;
     case UI_RS_VOCT: {
       static const uint8_t V[3] = { 1, 2, 5 };
@@ -810,6 +830,13 @@ static void uiHandlePress() {
       rsWriteOutputs();
       uiDirty = true;
       randomDirty = true;
+      return;
+    }
+    if (t == UI_RS_RANGEFINE) {
+      rsRangeFine ^= 1;
+      cfgDirty = true;
+      cfgMs = millis();
+      uiDirty = true;
       return;
     }
     uiEdit = !uiEdit;
@@ -944,7 +971,11 @@ static void uiRender() {
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_RANGE:
-        snprintf(buf, sizeof(buf), "RANGE  %.2f", rsNorm(rsRange, 0.5f, 8.0f));
+        snprintf(buf, sizeof(buf), "RANGE  %.3f", rsRange);
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_RANGEFINE:
+        snprintf(buf, sizeof(buf), "FINE   %s", rsRangeFine ? "ON" : "OFF");
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
       case UI_RS_SCALE:
