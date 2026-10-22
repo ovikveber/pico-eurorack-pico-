@@ -6,40 +6,32 @@
 
 ## 0. 路径速查
 - **PCB 已到货（2026-10-22）；左半 4 组 CV/Gate 已焊并验证；屏幕/编码器 UI 已完成。**
-- 屏幕/编码器测试（独立 sketch，不碰 MIDI）：`firmware\screen_test\screen_test.ino`
-  → 已编译并烧录：`firmware\screen_test_20261022_encoder.uf2`（2026-10-22）
-  - PIO SPI（2 周期/bit）+ DMA 搬运整帧；**SCLK 固定 31.25MHz**
-    （62.5MHz 在本板会花屏/不刷新，已确认是 SPI 时序余量问题，不是屏幕坏）
-  - 8 色 × 每色 3 帧 = 24 帧一循环，目标 24fps
-  - 串口连接时打印 cpu/vreg/sclk/oc_idx/wd_reset
-  - 编码器 A=GP13 B=GP12 SW=GP11，内部上拉
-  - **2026-10-22 上板排查**：用 `firmware\pin_scan` 扫描确认旋转时
-    **GP12/GP13 正常翻转**，接线与固件定义一致；问题在固件
-  - 原因 1：每转一格都 `Serial.print`，没有串口监视器时 USB CDC 缓冲满会阻塞主循环
-  - 原因 2：自动 24fps 模式每帧 DMA 阻塞约 15ms，轮询可能漏掉编码器状态
-  - 原因 3：编码器是 **15 脉冲 / 30 定位** → 每定位 2 个跳变，之前阈值 4 要转两格才动
-  - 修正：阈值改回 **2**；去掉逐格串口输出（调试输出用 availableForWrite 保护）；
-    默认手动模式
-  - 2026-10-22 串口抓包验证：旋转时 `RAW=..`、`STEP 1` 正常产生，编码器工作正常
-  - 旋转 = 切换纯色；短按 = 切换自动/手动
-  - 引脚按本板：SCL=GP10 SDA=GP9 RST=GP8 DC=GP7 CS=GP6 BL=GP5
-  - **2026-10-22 超频测试**（1.30V、16MB W25Q128、boot2 /4、看门狗 6s）：
-    - 520MHz 启动失败 → 看门狗连续复位两次后自动降到 500MHz
-    - **500MHz 稳定运行**（flash=125MHz、SCLK 动态分频保持 31.25MHz、wd_reset=0）
-    - 530MHz 无法由整数 FBDIV 精确生成，`set_sys_clock_khz` 直接返回 false
-    - 结论：这块 Pico 在 1.3V 下的实用上限约 **500MHz**（受 flash /4 分频限制）
-  - 屏幕测试编译命令（16MB flash）：
-    `--fqbn "rp2040:rp2040:generic:flash=16777216_0,boot2=boot2_w25q128jvxq_4_padded_checksum,freq=125"`
+- 屏幕/编码器独立测试：`firmware\screen_test\screen_test.ino`
+  → `firmware\screen_test_20261022_encoder.uf2`（历史测试；UI 已合并进主固件）
+  - PIO SPI + DMA；编码器 A=GP13 B=GP12 SW=GP11（15 脉冲 / 30 定位）
+  - 早期问题：逐格 `Serial.print` 会堵主循环；阈值 4 要转两格；已修正为阈值 2
+- **超频实测（`firmware\oc_test`，RAM 校准 + stress，不依赖 `clock_get_hz`）**：
+  - 125 / 400 / 420 / 432MHz 稳定（420 实测 421，432 实测 433）
+  - 436MHz 会复位；440 / 448 / 450MHz 挂死
+  - **500MHz 是假象**：`clock_get_hz` 报 500，但 `CLK_SYS_CTRL` 仍在 PLL_USB 48MHz
+    （510/500/480 实测 47MHz；520 落在 ROSC ~7MHz）
+  - 结论：选 **420MHz**（1.3V，boot2 /4 → flash 105MHz，安全），失败回退 125MHz
+  - oc_test 里看门狗必须在超频前启用，否则 450 这类挂死不会自动恢复
+- **屏幕最终频率**：
+  - 主固件 **420MHz CPU + 62.5MHz SCLK**（420 ÷ 2 ÷ 3.36）
+  - SCK/MOSI 用 **12mA + fast slew**；该组合实测颜色正常
+  - 375MHz 下 62.5MHz 是整数分频（÷3.0），也正常
+  - 70MHz 起偏红（PIO 140MHz+）；84/105MHz 颜色错误（PIO 168/210MHz），
+    属于数据位错误，不是 RGB 顺序，无法用补色修好
 - 已编译并烧录主固件：`firmware\midi2cv_20261022_ui.uf2`
-  （2026-10-22 屏幕/编码器 UI 版；临时 bring-up 固件已删除）
-  （arduino-cli 1.4.1 / rp2040 core 6.1.0 / 16MB + boot2 /4 + tinyusb；
-  编译通过：81556 B flash，17432 B RAM）
+  （16MB + boot2 /4 + tinyusb；清理掉所有串口调试/计时/BRINGUP/超频阶梯）
   - 枚举为 **OV-MIDI**（VID 239A/PID CAFE），另有 CDC 口 COM18 可做 1200bps touch
-  - 组1..4 = MIDI ch1..4 已固定，当前只测左半 4 组
-- 主固件：`midi to cv\midi2cv\midi2cv.ino`（**已更新为 8 通道版**）
+  - 组1..4 = MIDI ch1..4，当前只测左半 4 组
+- 主固件：`midi to cv\midi2cv\midi2cv.ino`（8 通道 + 屏幕 UI）
 - 接线表：`midi to cv\硬件\OV-MIDI接线表.txt`
 - 物料：`midi to cv\物料\物料清单.txt`
-- 编译 FQBN：`rp2040:rp2040:rpipico:usbstack=tinyusb`（USB-MIDI 必须 tinyusb）
+- 编译 FQBN（16MB）：
+  `rp2040:rp2040:generic:flash=16777216_0,boot2=boot2_w25q128jvxq_4_padded_checksum,freq=125,usbstack=tinyusb`
   - `$cli="D:\aruidno ide\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"`；`$env:ARDUINO_DIRECTORIES_DATA="D:\Arduino15"`
 - 烧录：1200bps touch 进 BOOTSEL（出现 `RPI-RP2` 盘）→ 拖 `.uf2`。
 
@@ -73,7 +65,8 @@
   - 导航：旋转移动选择行（蓝框），列出 V1..V8 和当前 `CH n`
   - 按下进入编辑（橙框 + 深色底），旋转改通道 1..16，再按退出并写入 EEPROM
   - GPIO 中断读编码器，屏幕刷新期间不漏步
-- ST7789 240×240：PIO SPI + DMA，SCLK 31.25MHz，`MADCTL=0x60`（90° 方向）
+- ST7789 240×240：PIO SPI + DMA，**420MHz CPU / 62.5MHz SCLK**，
+  SCK/MOSI 12mA + fast slew，`MADCTL=0x60`（90° 方向）
 - V/oct 和 Gate 极性暂时固定为 **1V/oct、正极性**，没有 UI（后续加第二页）
 - **待做**：私有总线(PIO UART, GP14)、右半 5–8 组、V/oct/极性 UI、DAC 校准。
 
@@ -158,6 +151,8 @@
   - 导航模式：旋转选择行（蓝色框）；按下进入编辑
   - 编辑模式：该行橙框/底色高亮；旋转改通道 1..16；再按退出并保存 EEPROM
   - 编码器用 GPIO 中断，推屏期间不会漏步
+  - 选择框/高亮带用弹簧动画（stiffness 0.30 / damping 0.55，约 60fps），
+    有轻微过冲；62.5MHz 下整帧刷新约 14.75ms，动画不再做局部 band
   - 面板方向：ST7789 `MADCTL=0x60`（纠正 90° 旋转；原来是 0x00）
   - V/oct 和 Gate 极性暂时固定为 **1V/oct、正极性**，没有 UI（后续可加第二页）
 - **2026-10-22 排查结论**：ch1 曾无反应，串口抓到 `MIDI st=90` 说明 USB-MIDI 正常；
@@ -177,20 +172,30 @@
 - **2026-10-22 v7：PCB 到货；左半 4 组 CV/Gate 已焊；屏幕/编码器测试通过；
   主固件按 16MB flash 编译并烧录，枚举为 OV-MIDI。**
 - **2026-10-22 v8：ST7789 UI 完成**（V1..V8/通道列表、蓝框选择、橙框编辑、EEPROM 保存）；
-  编码器改 GPIO 中断；`MADCTL=0x60`；屏幕测试固件 1.3V 下 500MHz 稳定。
+  编码器改 GPIO 中断；`MADCTL=0x60`。
+- **2026-10-22 v9（最终时钟/清理）**：
+  - 超频实测：400/420/432MHz 稳定（420 实测 421）；436 复位；440/448/450 挂死；
+    500/480/510 是 `clock_get_hz` 假象，实际停在 PLL_USB 48MHz；520 落在 ROSC ~7MHz
+  - 固定 **420MHz**，校验 PLL lock + CLK_SYS 源，失败回退 125MHz；flash /4 安全
+  - 屏幕 **62.5MHz**（420÷2÷3.36），SCK/MOSI 12mA + fast slew，颜色正常
+  - 70MHz 起偏红/数据错误，84/105 不可用；62.5 是这块屏的实际可用上限
+  - 清理所有串口调试/计时/BRINGUP/超频阶梯；`oc_test` 保留为独立验证工具
 
 ## 6. 当前状态（2026-10-22）
 - 当前固件：`firmware\midi2cv_20261022_ui.uf2`
-  - 16MB flash + `boot2_w25q128jvxq_4` + TinyUSB，主频 125MHz（未超频）
-- 已验证：左半组1–4 CV/Gate、MIDI ch1–4、屏幕 UI、编码器选择/编辑/保存
-- 屏幕：PIO + DMA，SCLK 31.25MHz，`MADCTL=0x60`
+  - 16MB flash + `boot2_w25q128jvxq_4` + TinyUSB
+  - CPU **420MHz**（PLL 校验通过；失败回退 125MHz）
+  - 屏幕 **62.5MHz SCLK**，整帧约 14.75ms，UI 约 60fps
+- 已验证：左半组1–4 CV/Gate、MIDI ch1–4、屏幕 UI、编码器选择/编辑/保存、颜色正常
 - 未验证：右半组5–8、EEPROM 断电保持、DAC 精度、私有总线
-- 超频结论：屏幕测试固件在 1.30V 下 500MHz 稳定（520 失败自动降档）；
-  主 MIDI 固件仍用 125MHz，优先稳定性
+- 超频结论：420/432 稳定，436+ 不稳定；500 从未真正跑起来
+- 屏幕结论：62.5MHz 可用；70MHz 起颜色错误（PIO 超速，不是颜色顺序）
 
 ## 7. 下次继续
 1. 焊右半 5–8 组，逐路测 CV/Gate
 2. 断电重启，确认通道配置能从 EEPROM 恢复
 3. 给 UI 加第二页：V/oct（1/2/5/8）和 Gate 极性
 4. 私有总线（GP14，PIO UART，帧格式见 `vcv-rack/src/PrivateBus.hpp`）
-5. 需要时再做 DAC 输出精度校准
+5. 快速转动若跳步，加 **200µs** 编码器消抖（不要 1ms）
+6. 需要时再做 DAC 输出精度校准
+7. `firmware\oc_test` 是超频验证工具，不参与主固件编译

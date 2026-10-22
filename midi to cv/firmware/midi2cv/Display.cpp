@@ -17,16 +17,17 @@
 #define LCD_W 240
 #define LCD_H 240
 
-static uint16_t fb[LCD_W * LCD_H];
+static uint16_t fb[LCD_W * LCD_H] __attribute__((aligned(4)));
 static PIO lcdPio = pio0;
 static int lcdSm = -1;
 static uint lcdOff = 0;
 static int dmaTx = -1;
-static float lcdClkDiv = 2.0f;      // 31.25 MHz at 125 MHz
-static const uint8_t lcdMadctl = 0x60;   // rotate 90 deg (portrait -> landscape)
+static float lcdClkDiv = 2.0f;
+static uint32_t lcdSysHz = 125000000u;
+static const uint8_t lcdMadctl = 0x60;   // rotate 90 deg
 
 static inline float sclkHz() {
-  return (float)clock_get_hz(clk_sys) / (2.0f * lcdClkDiv);
+  return (float)lcdSysHz / (2.0f * lcdClkDiv);
 }
 
 // ---------------- bit-bang for commands / window ----------------
@@ -59,11 +60,23 @@ static void bbModeBegin() {
   gpio_put(PIN_SCK, 0);
   gpio_put(PIN_MOSI, 0);
 }
+static void lcdPinDrive() {
+  gpio_set_drive_strength(PIN_SCK, GPIO_DRIVE_STRENGTH_12MA);
+  gpio_set_drive_strength(PIN_MOSI, GPIO_DRIVE_STRENGTH_12MA);
+  gpio_set_slew_rate(PIN_SCK, GPIO_SLEW_RATE_FAST);
+  gpio_set_slew_rate(PIN_MOSI, GPIO_SLEW_RATE_FAST);
+}
+
 static void bbModeEnd() {
   pio_gpio_init(lcdPio, PIN_SCK);
   pio_gpio_init(lcdPio, PIN_MOSI);
+  lcdPinDrive();
   pio_sm_set_consecutive_pindirs(lcdPio, lcdSm, PIN_SCK, 1, true);
   pio_sm_set_consecutive_pindirs(lcdPio, lcdSm, PIN_MOSI, 1, true);
+  pio_sm_set_enabled(lcdPio, lcdSm, false);
+  pio_sm_clear_fifos(lcdPio, lcdSm);
+  pio_sm_restart(lcdPio, lcdSm);
+  pio_sm_exec(lcdPio, lcdSm, pio_encode_jmp(lcdOff));
   pio_sm_set_enabled(lcdPio, lcdSm, true);
 }
 
@@ -111,6 +124,7 @@ static void pioBegin() {
   sm_config_set_clkdiv(&c, lcdClkDiv);
   pio_gpio_init(lcdPio, PIN_SCK);
   pio_gpio_init(lcdPio, PIN_MOSI);
+  lcdPinDrive();
   pio_sm_set_consecutive_pindirs(lcdPio, lcdSm, PIN_SCK, 1, true);
   pio_sm_set_consecutive_pindirs(lcdPio, lcdSm, PIN_MOSI, 1, true);
   pio_sm_init(lcdPio, lcdSm, lcdOff, &c);
@@ -171,8 +185,6 @@ void displayInit() {
 
   lcdInit();
   pioBegin();
-  displayClear(0);
-  lcdPushFb();
 }
 
 void displayClear(uint16_t color) {
@@ -220,4 +232,12 @@ void displayText(int x, int y, const char* text, uint16_t color, int scale) {
 
 void displayFlush() {
   lcdPushFb();
+}
+
+void displaySetSclkForSys(float mhz, uint32_t sysKhz) {
+  if (mhz < 1.0f) mhz = 1.0f;
+  lcdSysHz = sysKhz * 1000u;
+  lcdClkDiv = (float)lcdSysHz / (2.0f * mhz * 1e6f);
+  if (lcdClkDiv < 1.0f) lcdClkDiv = 1.0f;
+  if (lcdSm >= 0) pio_sm_set_clkdiv(lcdPio, lcdSm, lcdClkDiv);
 }

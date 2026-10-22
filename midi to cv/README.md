@@ -8,7 +8,8 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
 
 > **状态：开发中。** PCB 已于 2026-10-22 到货；左半 4 组 CV/Gate 已焊并验证，
 > ST7789 屏幕 + 编码器通道设置 UI 已完成。当前固件：
-> `firmware/midi2cv_20261022_ui.uf2`。右半 5–8 组、私有总线和校准仍待做。
+> `firmware/midi2cv_20261022_ui.uf2`。CPU 420MHz（PLL 校验，失败回退 125MHz），
+> 屏幕 SCLK 62.5MHz。右半 5–8 组、私有总线和校准仍待做。
 
 ## 功能
 
@@ -17,6 +18,8 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
 - ST7789 240×240 屏幕：列出 V1..V8 和当前通道
 - EC11 编码器：旋转选行（蓝框），按下进入编辑（橙框），旋转改通道，再按退出并保存
 - 编码器使用 GPIO 中断，屏幕刷新期间不会漏步
+- RP2040 420MHz（1.3V，PLL/时钟源校验；失败回退 125MHz）
+- ST7789 SCLK 62.5MHz（12mA + fast slew），整帧约 14.75ms，UI 约 60fps
 - USB 描述符固定，避免 Windows 和 FL Studio 累积幽灵设备
 - 私有数字总线（GP14）已预留，尚未实现
 
@@ -59,6 +62,10 @@ rp2040:rp2040:generic:flash=16777216_0,boot2=boot2_w25q128jvxq_4_padded_checksum
 
 依赖库：Adafruit TinyUSB、EEPROM（RP2040 核心自带）。
 
+固件运行时把 CPU 设到 **420MHz**（1.3V，PLL/时钟源校验，失败回退 125MHz），
+屏幕 SCLK **62.5MHz**。`firmware/oc_test` 是超频验证工具：实测 420/432MHz 稳定，
+436MHz 起会复位或挂死；500MHz 是 `clock_get_hz` 假象，实际停在 48MHz/ROSC。
+
 ## 校准
 
 `NOTE0`（对应 0V 的 MIDI 音符）和 `CV_FULLSCALE_V` 是常量，DAC8568 内部基准准确，
@@ -71,8 +78,9 @@ firmware/midi2cv/midi2cv.ino   主固件
 firmware/midi2cv/Display.cpp    ST7789 PIO+DMA 驱动
 firmware/midi2cv/Display.h
 firmware/midi2cv/font5x7.h      5x7 字库
-firmware/screen_test/           屏幕/编码器/超频测试 sketch
+firmware/screen_test/           屏幕/编码器测试 sketch
 firmware/pin_scan/              GPIO 扫描排查工具
+firmware/oc_test/               超频验证工具（420/432 稳定，436+ 不稳）
 firmware/midi2cv_20261022_ui.uf2     当前固件
 firmware/screen_test_20261022_encoder.uf2  屏幕测试固件
 hardware/                      BOM、Gerber、板子照片
@@ -97,7 +105,8 @@ of each voice.
 
 > **Status: in development.** The PCB arrived on 2026-10-22; the left 4 CV/Gate groups are
 > soldered and verified, and the ST7789 + encoder channel UI is implemented. Current
-> firmware: `firmware/midi2cv_20261022_ui.uf2`. Groups 5–8, the private bus and
+> firmware: `firmware/midi2cv_20261022_ui.uf2`. CPU runs at 420 MHz (PLL/source verified,
+> falls back to 125 MHz); display SCLK is 62.5 MHz. Groups 5–8, the private bus and
 > calibration are still pending.
 
 ## Features
@@ -108,6 +117,8 @@ of each voice.
 - EC11 encoder: rotate to select a row (blue box), press to edit (orange box), rotate to
   change the channel, press again to exit and save
 - Encoder runs on GPIO interrupts, so screen updates do not drop steps
+- RP2040 at 420 MHz (1.3 V, PLL/clock-source verified; falls back to 125 MHz)
+- ST7789 SCLK 62.5 MHz (12 mA + fast slew), full frame ~14.75 ms, UI ~60 fps
 - Fixed USB descriptors so Windows and FL Studio do not accumulate ghost devices
 - Private digital bus (GP14) is reserved but not implemented yet
 
@@ -151,6 +162,11 @@ rp2040:rp2040:generic:flash=16777216_0,boot2=boot2_w25q128jvxq_4_padded_checksum
 
 Libraries: Adafruit TinyUSB, EEPROM (bundled with the RP2040 core).
 
+At runtime the firmware sets the CPU to **420 MHz** (1.3 V, PLL/clock-source verified,
+falls back to 125 MHz) and the display SCLK to **62.5 MHz**. `firmware/oc_test` is the
+overclock verification tool: 420/432 MHz were stable; 436 MHz and above reset or hang.
+The old 500 MHz reading was `clock_get_hz` lying; the clock was actually on 48 MHz/ROSC.
+
 ## Calibration
 
 `NOTE0` (the MIDI note that maps to 0 V) and `CV_FULLSCALE_V` are constants because the
@@ -164,8 +180,9 @@ firmware/midi2cv/midi2cv.ino   main firmware
 firmware/midi2cv/Display.cpp   ST7789 PIO+DMA driver
 firmware/midi2cv/Display.h
 firmware/midi2cv/font5x7.h     5x7 font
-firmware/screen_test/          screen/encoder/overclock test sketch
+firmware/screen_test/          screen/encoder test sketch
 firmware/pin_scan/             GPIO scan bring-up tool
+firmware/oc_test/              overclock verification tool (420/432 stable)
 firmware/midi2cv_20261022_ui.uf2           current firmware
 firmware/screen_test_20261022_encoder.uf2  screen test firmware
 hardware/                      BOM, Gerber archive, board photos
