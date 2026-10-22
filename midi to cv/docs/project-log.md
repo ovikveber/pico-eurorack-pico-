@@ -31,7 +31,7 @@
   - 屏幕测试编译命令（16MB flash）：
     `--fqbn "rp2040:rp2040:generic:flash=16777216_0,boot2=boot2_w25q128jvxq_4_padded_checksum,freq=125"`
 - 已编译并烧录主固件：`firmware\midi2cv_20261022_ui.uf2`
-  （2026-10-22 屏幕/编码器 UI 版；上一版为 `midi2cv_20261022_16m.uf2`）
+  （2026-10-22 屏幕/编码器 UI 版；临时 bring-up 固件已删除）
   （arduino-cli 1.4.1 / rp2040 core 6.1.0 / 16MB + boot2 /4 + tinyusb；
   编译通过：81556 B flash，17432 B RAM）
   - 枚举为 **OV-MIDI**（VID 239A/PID CAFE），另有 CDC 口 COM18 可做 1200bps touch
