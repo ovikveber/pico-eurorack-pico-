@@ -256,8 +256,13 @@
   - VCV 新增 PAN 输出：-5V…+5V，取碰撞小球的 X 位置（`ev.pan * 5`）
   - Pico 新增 PAN 输出：**组3 CV（DAC F）**，0–5V（左 0V、中 2.5V、右 5V）
   - Random 输出更新：G1 CV=V/OCT、G2 CV=FX、G3 CV=PAN、G1 Gate=GATE、G2 Gate=TRIG
+- **2026-10-23 v18（文档/VCV 库提交）**：
+  - Pico README、RandomSynth-VCV README、RandomSynth README 全部更新
+  - 当前 UF2 已加入 Pico 仓库；三个仓库已推送到 `origin/main`
+  - VCV Library issue #990 指向 `4b0df0d`；正文/9 楼/10 楼已统一
+  - VCV 插件 2.0.1 已重编译并安装到本机 Rack；5 个输出均距，PAN 最右
 
-## 6. 当前状态（2026-10-22）
+## 6. 当前状态（2026-10-23）
 - 当前固件：`firmware\midi2cv_random_20261022.uf2`
   - 16MB flash + `boot2_w25q128jvxq_4` + TinyUSB
   - CPU **420MHz**（PLL 校验通过；失败回退 125MHz）
@@ -265,10 +270,12 @@
 - 已验证：左半组1–4 CV/Gate、MIDI ch1–4、屏幕 UI、编码器选择/编辑/保存、颜色正常
 - 已验证：MIDI 空闲和 clock 模式均不再红闪/花屏
 - Clock 模式：8 路 C1–C8，BPM 20–300，24 个分数，PLAY 手动启停，4 个 MIDI 通道仍可用
-- Random 模式：IO23 短按或长按 IO24 0.8s 进入；12 球粒子场、碰撞发出 V/OCT/GATE/TRIG/FX
+- Random 模式：IO23 短按或长按 IO24 0.8s 进入；12 球粒子场、碰撞发出 V/OCT/GATE/TRIG/FX/PAN
 - IO23 实测无反应（IO24 正常），疑似 GP23 未接/按钮焊接；IO23 代码保留
 - 模式隔离：MIDI/暂停时无 clock 定时器；播放才注册，暂停/退出立即取消；Random 下定时器关闭
-- Random 输出映射：G1 CV=V/OCT、G2 CV=FX、G1 Gate=GATE、G2 Gate=TRIG
+- Random 输出映射：G1 CV=V/OCT、G2 CV=FX、G3 CV=PAN、G1 Gate=GATE、G2 Gate=TRIG
+- Random 子波：只有初始波在墙上生成 1 个子波；子波不再继续
+- VCV Library #990 等待审核；README/源码/固件已上传，issue commit `4b0df0d`
 - 未验证：右半组5–8、EEPROM 断电保持、DAC 精度、私有总线
 - 超频结论：420/432 稳定，436+ 不稳定；500 从未真正跑起来
 - 屏幕结论：52.5MHz 稳定；62.5MHz 小数分频动态刷新红屏，70MHz+ 颜色错误
