@@ -11,6 +11,7 @@
 #include <hardware/watchdog.h>
 #include <pico/time.h>
 #include "Display.h"
+#include "RandomWorld.h"
 
 Adafruit_USBD_MIDI usb_midi;
 
@@ -66,6 +67,7 @@ static void setupClock() {
 #define ENC_B     12
 #define ENC_SW    11
 #define BTN_MODE  24
+#define BTN_RANDOM 23
 
 static const uint8_t gatePin[8] = { 22, 21, 20, 19, 15, 16, 17, 18 };
 static const uint8_t dacCh[8]   = {  1,  3,  5,  7,  0,  2,  4,  6 };
@@ -134,6 +136,53 @@ static volatile bool clkState[NCLK] = { false };
 static repeating_timer_t clkTimer;
 static bool clkTimerActive = false;
 
+// ---------------- RandomSynth mode ----------------
+enum RsBind : uint8_t {
+  RB_FIELD, RB_BALL, RB_SPEED, RB_WAVE, RB_WSPD, RB_RANGE, RB_PITCH,
+  RB_ADSR, RB_FXR, RB_SCALE, RB_VOCT, RB_GATE, RB_TRIG, RB_FXSEND,
+  RB_SHAPE, RB_COUNT
+};
+static const char* RB_NAMES[RB_COUNT] = {
+  "FIELD", "BALL", "SPEED", "WAVE", "W.SPD", "RANGE", "PITCH",
+  "ADSR", "FX RATIO", "SCALE", "V/OCT", "GATE", "TRIG", "FX SEND", "SHAPE"
+};
+static const char* SHAPE_NAMES[4] = { "CIRCLE", "RECT", "ELLIPSE", "HEX" };
+static const int SCALE_COUNT = (int)ScaleMode::Count;
+
+static bool randomMode = false;
+static bool randomSettings = false;
+static bool prevClockMode = false;
+static bool prevClockRunning = false;
+static bool rsInited = false;
+static bool rsGateOn = false;
+static bool rsTrigOn = false;
+static float rsGateRemain = 0.0f;
+static float rsTrigRemain = 0.0f;
+static float rsCvVolts = 0.0f;
+static float rsFxVolts = 0.0f;
+static uint32_t rsLastSim = 0;
+static uint32_t rsLastDraw = 0;
+static bool randomDirty = true;
+static World rsWorld;
+static Snapshot rsSnap;
+
+static uint8_t rsShape = 0;
+static uint8_t rsBind = RB_FIELD;
+static uint8_t rsVoct = 1;
+static uint8_t rsGateInv = 0;
+static uint8_t rsTrigInv = 0;
+static uint8_t rsFxSend = 100;
+static uint8_t rsScale = 0;
+static float rsField = 1.0f;
+static float rsBall = 0.55f;
+static float rsSpeed = 1.0f;
+static float rsWave = 0.5f;
+static float rsWSPD = 0.65f;
+static float rsRange = 4.0f;
+static float rsPitch = 50.0f;
+static float rsAdsr = 25.0f;
+static float rsFxRatio = 25.0f;
+
 // ---------------- settings ----------------
 struct Cfg {
   uint8_t magic;
@@ -142,30 +191,65 @@ struct Cfg {
   uint8_t ginv;
   uint16_t bpm;
   uint8_t div[NCLK];
+  uint8_t rsShape, rsBind, rsVoct, rsGate, rsTrig, rsFxSend, rsScale;
+  uint8_t rsField, rsBall, rsSpeed, rsWave, rsWSPD, rsRange, rsPitch, rsAdsr, rsFx;
 };
 static bool cfgDirty = false;
 static uint32_t cfgMs = 0;
 
 static void cfgLoad() {
   Cfg c; EEPROM.get(0, c);
-  if (c.magic != 0x5E) {
+  if (c.magic != 0x5F) {
     for (int v = 0; v < NVOICE; v++) c.ch[v] = v + 1;
     c.voct = 1; c.ginv = 0; c.bpm = 120;
     for (int i = 0; i < NCLK; i++) c.div[i] = DEF_DIV[i];
-    c.magic = 0x5E;
+    c.rsShape = 0; c.rsBind = RB_FIELD; c.rsVoct = 1;
+    c.rsGate = 0; c.rsTrig = 0; c.rsFxSend = 100; c.rsScale = 0;
+    c.rsField = 100; c.rsBall = 55; c.rsSpeed = 100; c.rsWave = 50;
+    c.rsWSPD = 65; c.rsRange = 8; c.rsPitch = 50; c.rsAdsr = 25; c.rsFx = 25;
+    c.magic = 0x5F;
   }
   for (int v = 0; v < NVOICE; v++) chan[v] = (c.ch[v] >= 1 && c.ch[v] <= 16) ? c.ch[v] : (v + 1);
   voctN = (c.voct == 1 || c.voct == 2 || c.voct == 5) ? c.voct : 1;
   gateInv = c.ginv ? 1 : 0;
   bpm = (c.bpm >= 20 && c.bpm <= 300) ? c.bpm : 120;
   for (int i = 0; i < NCLK; i++) divIdx[i] = (c.div[i] < DIV_N) ? c.div[i] : DEF_DIV[i];
+
+  rsShape = (c.rsShape <= 3) ? c.rsShape : 0;
+  rsBind = (c.rsBind < RB_COUNT) ? c.rsBind : RB_FIELD;
+  rsVoct = (c.rsVoct == 1 || c.rsVoct == 2 || c.rsVoct == 5) ? c.rsVoct : 1;
+  rsGateInv = c.rsGate ? 1 : 0;
+  rsTrigInv = c.rsTrig ? 1 : 0;
+  rsFxSend = (c.rsFxSend <= 100) ? c.rsFxSend : 100;
+  rsScale = (c.rsScale < SCALE_COUNT) ? c.rsScale : 0;
+  rsField = constrain(c.rsField, 50, 100) / 100.0f;
+  rsBall = constrain(c.rsBall, 30, 160) / 100.0f;
+  rsSpeed = constrain(c.rsSpeed, 10, 300) / 100.0f;
+  rsWave = constrain(c.rsWave, 20, 150) / 100.0f;
+  rsWSPD = constrain(c.rsWSPD, 20, 200) / 100.0f;
+  rsRange = constrain(c.rsRange, 1, 16) * 0.5f;
+  rsPitch = constrain(c.rsPitch, 0, 100);
+  rsAdsr = constrain(c.rsAdsr, 0, 100);
+  rsFxRatio = constrain(c.rsFx, 0, 100);
 }
 static void cfgSave() {
-  Cfg c; c.magic = 0x5E;
+  Cfg c; c.magic = 0x5F;
   for (int v = 0; v < NVOICE; v++) c.ch[v] = chan[v];
   c.voct = voctN; c.ginv = gateInv;
   c.bpm = bpm;
   for (int i = 0; i < NCLK; i++) c.div[i] = divIdx[i];
+  c.rsShape = rsShape; c.rsBind = rsBind; c.rsVoct = rsVoct;
+  c.rsGate = rsGateInv; c.rsTrig = rsTrigInv; c.rsFxSend = rsFxSend;
+  c.rsScale = rsScale;
+  c.rsField = (uint8_t)constrain((int)lroundf(rsField * 100.0f), 50, 100);
+  c.rsBall = (uint8_t)constrain((int)lroundf(rsBall * 100.0f), 30, 160);
+  c.rsSpeed = (uint8_t)constrain((int)lroundf(rsSpeed * 100.0f), 10, 300);
+  c.rsWave = (uint8_t)constrain((int)lroundf(rsWave * 100.0f), 20, 150);
+  c.rsWSPD = (uint8_t)constrain((int)lroundf(rsWSPD * 100.0f), 20, 200);
+  c.rsRange = (uint8_t)constrain((int)lroundf(rsRange * 2.0f), 1, 16);
+  c.rsPitch = (uint8_t)constrain((int)lroundf(rsPitch), 0, 100);
+  c.rsAdsr = (uint8_t)constrain((int)lroundf(rsAdsr), 0, 100);
+  c.rsFx = (uint8_t)constrain((int)lroundf(rsFxRatio), 0, 100);
   EEPROM.put(0, c); EEPROM.commit();
 }
 
@@ -274,6 +358,133 @@ static void clockSetRunning(bool on) {
   }
 }
 
+// ---------------- RandomSynth outputs ----------------
+static inline uint16_t voltsToCode(float v) {
+  if (v < 0.0f) v = 0.0f;
+  if (v > CV_FULLSCALE_V) v = CV_FULLSCALE_V;
+  return (uint16_t)(v / CV_FULLSCALE_V * 65535.0f + 0.5f);
+}
+
+static void rsWriteOutputs() {
+  dacWriteUpdateRaw(dacCh[0], voltsToCode(rsCvVolts));
+  dacWriteUpdateRaw(dacCh[1], voltsToCode(rsFxVolts));
+  digitalWrite(gatePin[0], rsGateOn ? (rsGateInv ? LOW : HIGH) : (rsGateInv ? HIGH : LOW));
+  digitalWrite(gatePin[1], rsTrigOn ? (rsTrigInv ? LOW : HIGH) : (rsTrigInv ? HIGH : LOW));
+}
+
+static void rsApplySettings() {
+  WorldSettings s;
+  s.ballScale = rsBall;
+  s.ballSpeed = rsSpeed;
+  s.waveRange = rsWave;
+  s.waveSpeed = rsWSPD;
+  s.pitchRange = rsRange;
+  s.scaleMode = rsScale;
+  s.ratio = { rsPitch / 100.0f, rsAdsr / 100.0f, rsFxRatio / 100.0f };
+  rsWorld.setSettings(s);
+  rsWorld.setShape(rsShape);
+  rsWorld.setFieldScale(rsField);
+  rsWorld.setPitchRange(rsRange);
+  rsWorld.setScale(rsScale);
+  rsWorld.setBallScale(rsBall);
+}
+
+static void rsInit() {
+  if (rsInited) return;
+  rsApplySettings();
+  rsWorld.reset();
+  rsInited = true;
+}
+
+static void rsClearOutputs() {
+  rsGateOn = false;
+  rsTrigOn = false;
+  rsGateRemain = 0.0f;
+  rsTrigRemain = 0.0f;
+  rsCvVolts = 0.0f;
+  rsFxVolts = 0.0f;
+  digitalWrite(gatePin[0], rsGateInv ? HIGH : LOW);
+  digitalWrite(gatePin[1], rsTrigInv ? HIGH : LOW);
+  dacWriteUpdateRaw(dacCh[0], 0);
+  dacWriteUpdateRaw(dacCh[1], 0);
+}
+
+static void rsTick() {
+  if (!randomMode) return;
+  uint32_t now = millis();
+  if (now - rsLastSim < 16u) return;
+  rsLastSim = now;
+
+  constexpr float dt = 1.0f / 60.0f;
+  rsWorld.update(dt);
+
+  if (rsGateRemain > 0.0f) {
+    rsGateRemain -= dt;
+    if (rsGateRemain <= 0.0f) {
+      rsGateRemain = 0.0f;
+      rsGateOn = false;
+      rsFxVolts = 0.0f;
+    }
+  }
+  if (rsTrigRemain > 0.0f) {
+    rsTrigRemain -= dt;
+    if (rsTrigRemain <= 0.0f) {
+      rsTrigRemain = 0.0f;
+      rsTrigOn = false;
+    }
+  }
+
+  for (const auto& ev : rsWorld.getEvents()) {
+    rsCvVolts = (ev.note - 60.0f) / 12.0f * (float)rsVoct;
+    rsFxVolts = ev.send * 5.0f * ((float)rsFxSend / 100.0f);
+    rsGateOn = true;
+    rsTrigOn = true;
+    rsGateRemain = 0.05f + ev.release * (0.5f + ((float)random(0, 1000) / 1000.0f) * 1.4f);
+    rsTrigRemain = 0.02f;
+    if (rsGateRemain > 2.5f) rsGateRemain = 2.5f;
+  }
+
+  rsWriteOutputs();
+}
+
+static int wrapIndex(int v, int n) {
+  while (v < 0) v += n;
+  while (v >= n) v -= n;
+  return v;
+}
+
+static void rsAdjustBound(int delta) {
+  if (delta == 0) return;
+  const int d = delta;
+  switch (rsBind) {
+    case RB_FIELD: rsField = fminf(1.0f, fmaxf(0.5f, rsField + d * 0.01f)); break;
+    case RB_BALL: rsBall = fminf(1.6f, fmaxf(0.3f, rsBall + d * 0.01f)); break;
+    case RB_SPEED: rsSpeed = fminf(3.0f, fmaxf(0.1f, rsSpeed + d * 0.02f)); break;
+    case RB_WAVE: rsWave = fminf(1.5f, fmaxf(0.2f, rsWave + d * 0.01f)); break;
+    case RB_WSPD: rsWSPD = fminf(2.0f, fmaxf(0.2f, rsWSPD + d * 0.01f)); break;
+    case RB_RANGE: rsRange = fminf(8.0f, fmaxf(0.5f, rsRange + d * 0.5f)); break;
+    case RB_PITCH: rsPitch = fminf(100.0f, fmaxf(0.0f, rsPitch + d)); break;
+    case RB_ADSR: rsAdsr = fminf(100.0f, fmaxf(0.0f, rsAdsr + d)); break;
+    case RB_FXR: rsFxRatio = fminf(100.0f, fmaxf(0.0f, rsFxRatio + d)); break;
+    case RB_SCALE: rsScale = (uint8_t)wrapIndex((int)rsScale + d, SCALE_COUNT); break;
+    case RB_VOCT: {
+      static const uint8_t V[3] = { 1, 2, 5 };
+      int i = 0; while (i < 2 && V[i] != rsVoct) i++;
+      rsVoct = V[wrapIndex(i + (d > 0 ? 1 : 2), 3)];
+      break;
+    }
+    case RB_GATE: rsGateInv ^= 1; break;
+    case RB_TRIG: rsTrigInv ^= 1; break;
+    case RB_FXSEND: rsFxSend = (uint8_t)constrain((int)rsFxSend + d, 0, 100); break;
+    case RB_SHAPE: rsShape = (uint8_t)wrapIndex((int)rsShape + d, 4); break;
+    default: break;
+  }
+  rsApplySettings();
+  rsWriteOutputs();
+  cfgDirty = true; cfgMs = millis();
+  randomDirty = true;
+}
+
 // ---------------- MIDI ----------------
 static void midiNoteOn(uint8_t v, uint8_t n) {
   if (noteCnt[v] < 16) noteStack[v][noteCnt[v]++] = n;
@@ -293,6 +504,7 @@ static void midiTask() {
   while (usb_midi.readPacket(pkt)) {
     uint8_t status = pkt[1];
     if (status < 0x80) continue;
+    if (randomMode) continue;
 
     if (status == 0xFA) {              // Start
       if (clockMode) { clockArmed = true; clockSetRunning(true); }
@@ -339,10 +551,16 @@ static void encISR() {
 }
 
 // ---------------- single-column UI ----------------
-enum UiType : uint8_t { UI_CH, UI_CLK, UI_TEMPO, UI_GATE, UI_VOCT, UI_PLAY };
+enum UiType : uint8_t {
+  UI_CH, UI_CLK, UI_TEMPO, UI_GATE, UI_VOCT, UI_PLAY,
+  UI_RS_BACK, UI_RS_SHAPE, UI_RS_FIELD, UI_RS_BALL, UI_RS_SPEED,
+  UI_RS_WAVE, UI_RS_WSPD, UI_RS_PITCH, UI_RS_ADSR, UI_RS_FXR,
+  UI_RS_RANGE, UI_RS_SCALE, UI_RS_VOCT, UI_RS_GATE, UI_RS_TRIG,
+  UI_RS_FXSEND, UI_RS_BALLS, UI_RS_BOOST, UI_RS_RESET, UI_RS_BIND
+};
 struct UiItem { uint8_t type; uint8_t index; };
 
-static UiItem  uiItems[16];
+static UiItem  uiItems[32];
 static uint8_t uiCount = 0;
 static uint8_t uiFirst = 0;
 static uint8_t uiSel = 0;
@@ -352,7 +570,7 @@ static bool    uiPainted = false;
 static float   uiSelY = 17.0f;
 static float   uiVelY = 0.0f;
 static bool    uiAnimating = false;
-static uint8_t uiLedCache[16];
+static uint8_t uiLedCache[32];
 
 #define UI_VIS   10
 #define UI_ROW_H 22
@@ -371,7 +589,28 @@ static void uiClampWindow() {
 
 static void uiBuildItems() {
   uiCount = 0;
-  if (!clockMode) {
+  if (randomMode) {
+    uiItems[uiCount++] = { UI_RS_BACK, 0 };
+    uiItems[uiCount++] = { UI_RS_SHAPE, 0 };
+    uiItems[uiCount++] = { UI_RS_FIELD, 0 };
+    uiItems[uiCount++] = { UI_RS_BALL, 0 };
+    uiItems[uiCount++] = { UI_RS_SPEED, 0 };
+    uiItems[uiCount++] = { UI_RS_WAVE, 0 };
+    uiItems[uiCount++] = { UI_RS_WSPD, 0 };
+    uiItems[uiCount++] = { UI_RS_PITCH, 0 };
+    uiItems[uiCount++] = { UI_RS_ADSR, 0 };
+    uiItems[uiCount++] = { UI_RS_FXR, 0 };
+    uiItems[uiCount++] = { UI_RS_RANGE, 0 };
+    uiItems[uiCount++] = { UI_RS_SCALE, 0 };
+    uiItems[uiCount++] = { UI_RS_VOCT, 0 };
+    uiItems[uiCount++] = { UI_RS_GATE, 0 };
+    uiItems[uiCount++] = { UI_RS_TRIG, 0 };
+    uiItems[uiCount++] = { UI_RS_FXSEND, 0 };
+    uiItems[uiCount++] = { UI_RS_BALLS, 0 };
+    uiItems[uiCount++] = { UI_RS_BOOST, 0 };
+    uiItems[uiCount++] = { UI_RS_RESET, 0 };
+    uiItems[uiCount++] = { UI_RS_BIND, 0 };
+  } else if (!clockMode) {
     for (int i = 0; i < 8; i++) uiItems[uiCount++] = { UI_CH, (uint8_t)i };
     uiItems[uiCount++] = { UI_GATE, 0 };
     uiItems[uiCount++] = { UI_VOCT, 0 };
@@ -390,7 +629,7 @@ static void uiBuildItems() {
   uiSelY = (float)(UI_ROW_Y - 1);
   uiVelY = 0;
   uiAnimating = false;
-  for (int i = 0; i < 16; i++) uiLedCache[i] = 0xFF;
+  for (int i = 0; i < 32; i++) uiLedCache[i] = 0xFF;
   uiDirty = true;
 }
 
@@ -470,14 +709,78 @@ static void uiHandleRotation(int16_t delta) {
       gDirty = true;
       break;
     }
+    case UI_RS_SHAPE: rsShape = (uint8_t)wrapIndex((int)rsShape + delta, 4); break;
+    case UI_RS_FIELD: rsField = fminf(1.0f, fmaxf(0.5f, rsField + delta * 0.01f)); break;
+    case UI_RS_BALL: rsBall = fminf(1.6f, fmaxf(0.3f, rsBall + delta * 0.01f)); break;
+    case UI_RS_SPEED: rsSpeed = fminf(3.0f, fmaxf(0.1f, rsSpeed + delta * 0.02f)); break;
+    case UI_RS_WAVE: rsWave = fminf(1.5f, fmaxf(0.2f, rsWave + delta * 0.01f)); break;
+    case UI_RS_WSPD: rsWSPD = fminf(2.0f, fmaxf(0.2f, rsWSPD + delta * 0.01f)); break;
+    case UI_RS_PITCH: rsPitch = fminf(100.0f, fmaxf(0.0f, rsPitch + delta)); break;
+    case UI_RS_ADSR: rsAdsr = fminf(100.0f, fmaxf(0.0f, rsAdsr + delta)); break;
+    case UI_RS_FXR: rsFxRatio = fminf(100.0f, fmaxf(0.0f, rsFxRatio + delta)); break;
+    case UI_RS_RANGE: rsRange = fminf(8.0f, fmaxf(0.5f, rsRange + delta * 0.5f)); break;
+    case UI_RS_SCALE: rsScale = (uint8_t)wrapIndex((int)rsScale + delta, SCALE_COUNT); break;
+    case UI_RS_VOCT: {
+      static const uint8_t V[3] = { 1, 2, 5 };
+      int i = 0; while (i < 2 && V[i] != rsVoct) i++;
+      rsVoct = V[wrapIndex(i + (delta > 0 ? 1 : 2), 3)];
+      break;
+    }
+    case UI_RS_GATE: rsGateInv ^= 1; break;
+    case UI_RS_TRIG: rsTrigInv ^= 1; break;
+    case UI_RS_FXSEND: rsFxSend = (uint8_t)constrain((int)rsFxSend + delta, 0, 100); break;
+    case UI_RS_BIND: rsBind = (uint8_t)wrapIndex((int)rsBind + delta, RB_COUNT); break;
     default:
       break;
+  }
+  if (randomMode) {
+    rsApplySettings();
+    rsWriteOutputs();
+    randomDirty = true;
   }
   cfgDirty = true; cfgMs = millis();
   uiDirty = true;
 }
 
 static void uiHandlePress() {
+  if (randomMode) {
+    const UiType t = (UiType)uiItems[uiSel].type;
+    if (t == UI_RS_BACK) {
+      randomSettings = false;
+      uiEdit = false;
+      randomDirty = true;
+      return;
+    }
+    if (t == UI_RS_BALLS) {
+      rsWorld.addBall();
+      uiDirty = true;
+      randomDirty = true;
+      return;
+    }
+    if (t == UI_RS_BOOST) {
+      rsWorld.addBooster();
+      uiDirty = true;
+      randomDirty = true;
+      return;
+    }
+    if (t == UI_RS_RESET) {
+      rsWorld.reset();
+      rsClearOutputs();
+      rsWriteOutputs();
+      uiDirty = true;
+      randomDirty = true;
+      return;
+    }
+    uiEdit = !uiEdit;
+    if (!uiEdit) {
+      cfgSave();
+      cfgDirty = false;
+    }
+    uiSnapSel();
+    uiDirty = true;
+    return;
+  }
+
   if (uiItems[uiSel].type == UI_PLAY) {
     clockSetRunning(!clockRunning);
     return;
@@ -503,9 +806,9 @@ static void uiRender() {
   const uint16_t selCol = rgb565(70, 180, 255);
 
   displayClear(bg);
-  displayText(6, 4, "OV-MIDI", accent, 1);
-  const char* mode = clockMode ? "CLOCK" : "MIDI";
-  displayText(237 - (int)strlen(mode) * 6, 4, mode, clockMode ? accent : dim, 1);
+  displayText(6, 4, randomMode ? "OV-RANDOM" : "OV-MIDI", accent, 1);
+  const char* mode = randomMode ? "SET" : (clockMode ? "CLOCK" : "MIDI");
+  displayText(237 - (int)strlen(mode) * 6, 4, mode, (randomMode || clockMode) ? accent : dim, 1);
   displayText(69, 4, "MADE BY OVIKVEBER", dim, 1);
   displayFillRect(0, 15, 240, 1, rgb565(40, 46, 56));
 
@@ -560,6 +863,84 @@ static void uiRender() {
         snprintf(buf, sizeof(buf), "V/OCT  %d", voctN);
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
         break;
+      case UI_RS_BACK:
+        displayText(UI_X + 12, ty, "< BACK", sel ? fg : dim, 1);
+        break;
+      case UI_RS_SHAPE:
+        snprintf(buf, sizeof(buf), "SHAPE  %s", SHAPE_NAMES[rsShape]);
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_FIELD:
+        snprintf(buf, sizeof(buf), "FIELD  %.2f", rsField);
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_BALL:
+        snprintf(buf, sizeof(buf), "BALL   %.2f", rsBall);
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_SPEED:
+        snprintf(buf, sizeof(buf), "SPEED  %.2f", rsSpeed);
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_WAVE:
+        snprintf(buf, sizeof(buf), "WAVE   %.2f", rsWave);
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_WSPD:
+        snprintf(buf, sizeof(buf), "W.SPD  %.2f", rsWSPD);
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_PITCH:
+        snprintf(buf, sizeof(buf), "PITCH  %d", (int)lroundf(rsPitch));
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_ADSR:
+        snprintf(buf, sizeof(buf), "ADSR   %d", (int)lroundf(rsAdsr));
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_FXR:
+        snprintf(buf, sizeof(buf), "FX RAT %d", (int)lroundf(rsFxRatio));
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_RANGE:
+        snprintf(buf, sizeof(buf), "RANGE  %.1f", rsRange);
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_SCALE:
+        snprintf(buf, sizeof(buf), "SCALE  %s", scaleName(rsScale));
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_VOCT:
+        snprintf(buf, sizeof(buf), "V/OCT  %d", rsVoct);
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_GATE:
+        displayText(UI_X + 8, ty, rsGateInv ? "GATE   -" : "GATE   +",
+                    sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_TRIG:
+        displayText(UI_X + 8, ty, rsTrigInv ? "TRIG   -" : "TRIG   +",
+                    sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_FXSEND:
+        snprintf(buf, sizeof(buf), "FX SEND %d", rsFxSend);
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_BALLS:
+        snprintf(buf, sizeof(buf), "+ BALL   %d", rsWorld.getBallCount());
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_BOOST:
+        snprintf(buf, sizeof(buf), "+ BOOST  %d", rsWorld.getBoosterCount());
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
+      case UI_RS_RESET:
+        displayText(UI_X + 12, ty, "RESET", sel ? fg : rgb565(220, 120, 120), 1);
+        break;
+      case UI_RS_BIND:
+        snprintf(buf, sizeof(buf), "KNOB   %s", RB_NAMES[rsBind]);
+        displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
+        break;
     }
     displayFillRect(UI_X, y + UI_ROW_H - 1, UI_W, 1, rgb565(40, 46, 56));
   }
@@ -607,37 +988,168 @@ static void uiFlashDots() {
   }
 }
 
+static uint16_t rsKindColor(int kind) {
+  if (kind == 0) return rgb565(255, 158, 64);
+  if (kind == 1) return rgb565(76, 214, 198);
+  return rgb565(206, 108, 255);
+}
+
+static uint16_t rsMixColor(uint16_t a, uint16_t b, float t) {
+  if (t < 0.0f) t = 0.0f;
+  if (t > 1.0f) t = 1.0f;
+  int ar = (a >> 11) & 31, ag = (a >> 5) & 63, ab = a & 31;
+  int br = (b >> 11) & 31, bg = (b >> 5) & 63, bb = b & 31;
+  int r = (int)lroundf(ar + (br - ar) * t);
+  int g = (int)lroundf(ag + (bg - ag) * t);
+  int bl = (int)lroundf(ab + (bb - ab) * t);
+  return (uint16_t)((r << 11) | (g << 5) | bl);
+}
+
+static uint16_t rsScaleColor(uint16_t c, float f) {
+  if (f < 0.0f) f = 0.0f;
+  if (f > 1.0f) f = 1.0f;
+  int r = (int)lroundf(((c >> 11) & 31) * f);
+  int g = (int)lroundf(((c >> 5) & 63) * f);
+  int b = (int)lroundf((c & 31) * f);
+  return (uint16_t)((r << 11) | (g << 5) | b);
+}
+
+static void rsRenderMain() {
+  const uint16_t bg     = rgb565(4, 5, 8);
+  const uint16_t dim    = rgb565(128, 136, 148);
+  const uint16_t accent = rgb565(255, 164, 58);
+  const uint16_t wall   = rgb565(52, 61, 76);
+
+  rsWorld.fillSnapshot(rsSnap);
+  displayClear(bg);
+
+  for (int i = 0; i < rsSnap.fieldCount; i++) {
+    const auto& f = rsSnap.fields[(size_t)i];
+    uint16_t c = rsKindColor(f.kind);
+    displayFillCircleAlpha((int)lroundf(f.pos.x), (int)lroundf(f.pos.y),
+                           (int)lroundf(f.radius), c,
+                           (uint8_t)constrain((int)(f.strength * 34.0f), 0, 60));
+  }
+
+  for (int i = 0; i < rsSnap.waveCount; i++) {
+    const auto& w = rsSnap.waves[(size_t)i];
+    uint16_t c = rsScaleColor(rsKindColor(w.kind), w.amp * 0.75f);
+    displayDrawCircle((int)lroundf(w.pos.x), (int)lroundf(w.pos.y),
+                      (int)lroundf(w.radius), c, 1);
+  }
+
+  for (int i = 0; i < rsSnap.linkCount; i++) {
+    const auto& l = rsSnap.links[(size_t)i];
+    displayDrawLine((int)lroundf(l.a.x), (int)lroundf(l.a.y),
+                    (int)lroundf(l.b.x), (int)lroundf(l.b.y),
+                    rsScaleColor(rgb565(150, 210, 255), 0.25f + 0.5f * l.amount), 1);
+  }
+
+  for (int i = 0; i < rsSnap.segmentCount; i++) {
+    const auto& s = rsSnap.segments[(size_t)i];
+    uint16_t c = wall;
+    if (s.hasProp && s.strength > 0.02f)
+      c = rsMixColor(wall, rsKindColor(s.kind), s.strength);
+    displayDrawLine((int)lroundf(s.a.x), (int)lroundf(s.a.y),
+                    (int)lroundf(s.b.x), (int)lroundf(s.b.y), c, 1);
+  }
+
+  for (int i = 0; i < rsSnap.boosterCount; i++) {
+    const auto& b = rsSnap.boosters[(size_t)i];
+    float pulse = 0.5f + 0.5f * sinf(rsSnap.elapsed * 4.0f + b.phase);
+    uint16_t c = b.cooldown > 0.0f ? rgb565(150, 140, 105) : rgb565(255, 220, 90);
+    int br = (int)lroundf(b.radius);
+    displayDrawCircle((int)lroundf(b.pos.x), (int)lroundf(b.pos.y),
+                      br + 1 + (int)(pulse * 2.0f), c, 1);
+    for (int k = 0; k < 4; k++) {
+      float ang = rsSnap.elapsed * 0.8f + (float)k * 1.5707963f;
+      int x0 = (int)lroundf(b.pos.x + cosf(ang) * (b.radius + 4.0f));
+      int y0 = (int)lroundf(b.pos.y + sinf(ang) * (b.radius + 4.0f));
+      int x1 = (int)lroundf(b.pos.x + cosf(ang) * (b.radius + 10.0f + pulse * 3.0f));
+      int y1 = (int)lroundf(b.pos.y + sinf(ang) * (b.radius + 10.0f + pulse * 3.0f));
+      displayDrawLine(x0, y0, x1, y1, c, 1);
+    }
+  }
+
+  for (int i = 0; i < rsSnap.ballCount; i++) {
+    const auto& b = rsSnap.balls[(size_t)i];
+    uint16_t c = rsKindColor(b.kind);
+    int br = (int)lroundf(b.radius);
+    if (br < 1) br = 1;
+    displayFillCircleAlpha((int)lroundf(b.pos.x), (int)lroundf(b.pos.y),
+                           (int)(b.radius * 2.6f), c, 30);
+    displayFillCircle((int)lroundf(b.pos.x), (int)lroundf(b.pos.y), br,
+                      b.flash > 0.0f ? rsMixColor(c, rgb565(255, 255, 255), 0.55f) : c);
+    displayDrawCircle((int)lroundf(b.pos.x), (int)lroundf(b.pos.y), br,
+                      rgb565(230, 235, 240), 1);
+  }
+
+  displayFillRect(0, 190, 240, 50, rgb565(5, 7, 10));
+  displayFillRect(0, 190, 240, 1, rgb565(38, 44, 54));
+
+  char l[48];
+  snprintf(l, sizeof(l), "B%02d BO%02d %s R%.1f",
+           rsSnap.ballCount, rsSnap.boosterCount, SHAPE_NAMES[rsShape], rsRange);
+  displayText(2, 192, l, dim, 1);
+  snprintf(l, sizeof(l), "%s V%d G%c T%c FX%d",
+           scaleName(rsScale), rsVoct, rsGateInv ? '-' : '+',
+           rsTrigInv ? '-' : '+', rsFxSend);
+  displayText(2, 200, l, dim, 1);
+  snprintf(l, sizeof(l), "F%.2f BAL%.2f SPD%.2f", rsField, rsBall, rsSpeed);
+  displayText(2, 208, l, dim, 1);
+  snprintf(l, sizeof(l), "WAV%.2f WSP%.2f P%d A%d FX%d",
+           rsWave, rsWSPD, (int)lroundf(rsPitch), (int)lroundf(rsAdsr),
+           (int)lroundf(rsFxRatio));
+  displayText(2, 216, l, dim, 1);
+  snprintf(l, sizeof(l), "KNOB %s", RB_NAMES[rsBind]);
+  displayText(2, 226, l, accent, 1);
+
+  displayFlush();
+}
+
 static void toggleClockMode() {
   if (clockMode) clockStop(); else clockStart();
   uiBuildItems();
 }
 
-static void uiProcess() {
-  int16_t delta;
-  noInterrupts();
-  delta = encDelta;
-  encDelta = 0;
-  interrupts();
-  if (delta) uiHandleRotation(delta);
-
-  static uint8_t sLast = 0, sStable = 0;
-  static uint32_t tChange = 0;
-  uint8_t s = (digitalRead(ENC_SW) == LOW) ? 1 : 0;
-  if (s != sLast) { sLast = s; tChange = millis(); }
-  if (millis() - tChange >= 15 && s != sStable) {
-    sStable = s;
-    if (s == 0) uiHandlePress();
+static void toggleRandomMode() {
+  if (!randomMode) {
+    prevClockMode = clockMode;
+    prevClockRunning = clockRunning;
+    if (clockMode) clockStop();
+    for (int v = 0; v < NVOICE; v++) {
+      noteCnt[v] = 0;
+      gate[v] = false;
+      dacWriteUpdateRaw(dacCh[v], 0);
+      digitalWrite(gatePin[v], LOW);
+    }
+    rsClearOutputs();
+    randomMode = true;
+    randomSettings = false;
+    rsInit();
+    randomDirty = true;
+  } else {
+    randomMode = false;
+    randomSettings = false;
+    rsClearOutputs();
+    for (int v = 0; v < NVOICE; v++) {
+      noteCnt[v] = 0;
+      gate[v] = false;
+      dacWriteUpdateRaw(dacCh[v], 0);
+      digitalWrite(gatePin[v], LOW);
+    }
+    if (prevClockMode) {
+      clockStart();
+      if (prevClockRunning) clockSetRunning(true);
+    } else {
+      clockStop();
+    }
+    uiBuildItems();
+    uiDirty = true;
   }
+}
 
-  static uint8_t mLast = 1, mStable = 1;
-  static uint32_t mChange = 0;
-  uint8_t m = (digitalRead(BTN_MODE) == LOW) ? 0 : 1;
-  if (m != mLast) { mLast = m; mChange = millis(); }
-  if (millis() - mChange >= 20 && m != mStable) {
-    mStable = m;
-    if (m == 0) toggleClockMode();
-  }
-
+static void uiListFrame() {
   static uint32_t tAnim = 0;
   static uint32_t tFlash = 0;
   uint32_t now = millis();
@@ -675,6 +1187,74 @@ static void uiProcess() {
   }
 }
 
+static bool uiReadPress() {
+  static uint8_t sLast = 0, sStable = 0;
+  static uint32_t tChange = 0;
+  uint8_t s = (digitalRead(ENC_SW) == LOW) ? 1 : 0;
+  if (s != sLast) { sLast = s; tChange = millis(); }
+  if (millis() - tChange >= 15 && s != sStable) {
+    sStable = s;
+    if (s == 0) return true;
+  }
+  return false;
+}
+
+static bool uiReadButton(uint8_t pin) {
+  static uint8_t last[32] = { 1 };
+  static uint32_t change[32] = { 0 };
+  static uint8_t stable[32] = { 1 };
+  if (pin >= 32) return false;
+  uint8_t m = (digitalRead(pin) == LOW) ? 0 : 1;
+  if (m != last[pin]) { last[pin] = m; change[pin] = millis(); }
+  if (millis() - change[pin] >= 20 && m != stable[pin]) {
+    stable[pin] = m;
+    if (m == 0) return true;
+  }
+  return false;
+}
+
+static void uiProcess() {
+  int16_t delta;
+  noInterrupts();
+  delta = encDelta;
+  encDelta = 0;
+  interrupts();
+
+  bool pressed = uiReadPress();
+  bool modePressed = uiReadButton(BTN_MODE);
+  bool randomPressed = uiReadButton(BTN_RANDOM);
+
+  if (randomPressed) {
+    toggleRandomMode();
+    return;
+  }
+  if (modePressed && !randomMode) {
+    toggleClockMode();
+    return;
+  }
+
+  if (randomMode) {
+    if (randomSettings) {
+      if (delta) uiHandleRotation(delta);
+      if (pressed) uiHandlePress();
+      uiListFrame();
+    } else {
+      if (delta) rsAdjustBound(delta);
+      if (pressed) {
+        randomSettings = true;
+        uiEdit = false;
+        uiBuildItems();
+        uiDirty = true;
+      }
+    }
+    return;
+  }
+
+  if (delta) uiHandleRotation(delta);
+  if (pressed) uiHandlePress();
+  uiListFrame();
+}
+
 // ---------------- setup / loop ----------------
 void setup() {
   setupClock();
@@ -688,9 +1268,11 @@ void setup() {
   { uint32_t t0 = millis(); while (!TinyUSBDevice.mounted() && millis() - t0 < 1500) delay(5); }
 
   EEPROM.begin(sizeof(Cfg)); cfgLoad();
+  rsInit();
 
   pinMode(ENC_A, INPUT_PULLUP); pinMode(ENC_B, INPUT_PULLUP); pinMode(ENC_SW, INPUT_PULLUP);
   pinMode(BTN_MODE, INPUT_PULLUP);
+  pinMode(BTN_RANDOM, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(ENC_A), encISR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ENC_B), encISR, CHANGE);
   for (int v = 0; v < NVOICE; v++) { pinMode(gatePin[v], OUTPUT); digitalWrite(gatePin[v], LOW); }
@@ -706,9 +1288,22 @@ void setup() {
 void loop() {
   watchdog_update();
   midiTask();
-
-  if (gDirty) { gDirty = false; updateOutputs(); }
   uiProcess();
+
+  if (randomMode) {
+    rsTick();
+    if (!randomSettings) {
+      if (randomDirty || millis() - rsLastDraw >= 33u) {
+        rsLastDraw = millis();
+        randomDirty = false;
+        rsRenderMain();
+      }
+    }
+  } else if (gDirty) {
+    gDirty = false;
+    updateOutputs();
+  }
+
   if (cfgDirty && millis() - cfgMs > 800) { cfgDirty = false; cfgSave(); }
 }
 

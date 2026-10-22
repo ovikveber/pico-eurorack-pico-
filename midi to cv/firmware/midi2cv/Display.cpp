@@ -176,6 +176,9 @@ static void lcdInit() {
 static inline void putPix(int i, uint16_t c) {
   if (i >= 0 && i < LCD_W * LCD_H) fb[i ^ 1] = c;
 }
+static inline void putPixXY(int x, int y, uint16_t c) {
+  if (x >= 0 && x < LCD_W && y >= 0 && y < LCD_H) fb[(y * LCD_W + x) ^ 1] = c;
+}
 
 void displayInit() {
   gpio_init(PIN_CS);  gpio_set_dir(PIN_CS, OUTPUT);  gpio_put(PIN_CS, 1);
@@ -222,11 +225,87 @@ void displayText(int x, int y, const char* text, uint16_t color, int scale) {
         if ((bits >> cy) & 1) {
           for (int sy = 0; sy < scale; sy++)
             for (int sx = 0; sx < scale; sx++)
-              putPix((y + cy * scale + sy) * LCD_W + (x + cx * scale + sx), color);
+              putPixXY(x + cx * scale + sx, y + cy * scale + sy, color);
         }
       }
     }
     x += (FONT_W + 1) * scale;
+  }
+}
+
+static inline uint16_t blend565(uint16_t dst, uint16_t src, uint8_t a) {
+  int dr = (dst >> 11) & 31, dg = (dst >> 5) & 63, db = dst & 31;
+  int sr = (src >> 11) & 31, sg = (src >> 5) & 63, sb = src & 31;
+  int r = (dr * (255 - a) + sr * a) / 255;
+  int g = (dg * (255 - a) + sg * a) / 255;
+  int b = (db * (255 - a) + sb * a) / 255;
+  return (uint16_t)((r << 11) | (g << 5) | b);
+}
+
+void displayDrawLine(int x0, int y0, int x1, int y1, uint16_t color, int thickness) {
+  if (thickness < 1) thickness = 1;
+  int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+  int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+  int err = dx + dy;
+  for (;;) {
+    if (thickness == 1) {
+      putPixXY(x0, y0, color);
+    } else {
+      displayFillRect(x0 - thickness / 2, y0 - thickness / 2,
+                      thickness, thickness, color);
+    }
+    if (x0 == x1 && y0 == y1) break;
+    int e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+
+void displayFillCircle(int cx, int cy, int r, uint16_t color) {
+  if (r <= 0) return;
+  int r2 = r * r;
+  for (int y = -r; y <= r; y++) {
+    for (int x = -r; x <= r; x++) {
+      if (x * x + y * y <= r2) putPixXY(cx + x, cy + y, color);
+    }
+  }
+}
+
+void displayFillCircleAlpha(int cx, int cy, int r, uint16_t color, uint8_t alpha) {
+  if (r <= 0 || alpha == 0) return;
+  int r2 = r * r;
+  for (int y = -r; y <= r; y++) {
+    int py = cy + y;
+    if (py < 0 || py >= LCD_H) continue;
+    for (int x = -r; x <= r; x++) {
+      int px = cx + x;
+      if (px < 0 || px >= LCD_W) continue;
+      if (x * x + y * y > r2) continue;
+      int i = py * LCD_W + px;
+      fb[i ^ 1] = blend565(fb[i ^ 1], color, alpha);
+    }
+  }
+}
+
+void displayDrawCircle(int cx, int cy, int r, uint16_t color, int thickness) {
+  if (r <= 0) return;
+  for (int t = 0; t < thickness; t++) {
+    int rr = r - t;
+    if (rr <= 0) break;
+    int x = rr, y = 0, err = 1 - rr;
+    while (x >= y) {
+      putPixXY(cx + x, cy + y, color);
+      putPixXY(cx + y, cy + x, color);
+      putPixXY(cx + x, cy - y, color);
+      putPixXY(cx + y, cy - x, color);
+      putPixXY(cx - x, cy + y, color);
+      putPixXY(cx - y, cy + x, color);
+      putPixXY(cx - x, cy - y, color);
+      putPixXY(cx - y, cy - x, color);
+      y++;
+      if (err < 0) err += 2 * y + 1;
+      else { x--; err += 2 * (y - x) + 1; }
+    }
   }
 }
 

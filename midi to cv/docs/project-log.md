@@ -78,13 +78,24 @@
     - 第一次启动从相位 0 开始；暂停保留相位，再启动继续
     - USB MIDI Start/Stop/Continue 也可控制 clock（只在 clock 模式生效）
     - 无 RUN/RESET 硬件输出；组1 的两个插孔已改成 clock
-  - GPIO 中断读编码器；IO23 预留未用（Pico 装板后/箱内，不靠物理按键）
+  - **RANDOM 模式（IO23 进入/退出，移植 RandomSynth-VCV）**：
+    - 全屏粒子场地（240×190），底部 5 行小字显示全部参数和 KNOB 绑定
+    - 主页面编码器默认调 **场地大小**；按下进入设置页；设置页 BACK 返回
+    - 设置行：BACK、SHAPE、FIELD、BALL、SPEED、WAVE、W.SPD、PITCH、ADSR、
+      FX RATIO、RANGE、SCALE、V/OCT、GATE、TRIG、FX SEND、+BALL、+BOOST、RESET、KNOB
+    - `+BALL` 行显示当前球数，`+BOOST` 行显示加速器数量，都是按下直接执行
+    - RESET 与 MIDI 的 PLAY/RUN 行一样，选中后直接按编码器重置
+    - BIND/KNOB 行可把任意参数绑定到主页面编码器，主页面只绑一个
+    - V/OCT 量程 1/2/5；GATE/TRIG 极性 +/-；FX SEND 0–100%
+    - 输出：**G1 CV=V/OCT，G2 CV=FX SEND，G1 Gate=GATE，G2 Gate=TRIG**
+      （每组只有 1 个 DAC CV + 1 个 Gate；FX 只能走 G2 CV）
+  - GPIO 中断读编码器；IO23=RANDOM 切换，IO24=MIDI/CLOCK 切换（RANDOM 下忽略 IO24）
 - ST7789 240×240：PIO SPI + DMA，**420MHz CPU / 52.5MHz SCLK**，
   SCK/MOSI 12mA + fast slew，`MADCTL=0x60`（90° 方向）
 - 屏幕闪烁修复：不再持续整帧刷新；LED 仅在状态变化时用局部 12px 小方块刷新，
   每个局部窗口后加 20µs；MIDI 空闲和 clock 模式均不再红闪/花屏
 - **模式隔离**：MIDI/暂停时 clock 定时器根本未注册；播放才 add，暂停/退出立即 cancel
-- 所有设置（通道、GATE、V/OCT、BPM、8 个分频）写入 EEPROM
+- 所有设置（通道、GATE、V/OCT、BPM、8 个分频、Random 参数/绑定）写入 EEPROM
 - **待做**：私有总线(PIO UART, GP14)、右半 5–8 组、DAC 校准。
 
 ## 4. 进度
@@ -209,16 +220,26 @@
   - 暂停/退出立即取消定时器；MIDI 模式根本未注册 clock 定时器
   - 屏幕 420MHz ÷ 2 ÷ 4.0 = **52.5MHz** 整数分频；12mA + fast slew
   - 通道条蓝色、CH 文字在条后、12px 指示灯、1px 细框、行间分隔线
+- **2026-10-22 v12（RandomSynth 模式）**：
+  - IO23 新增第三模式：移植 `RandomSynth-VCV` 的 WorldCV 粒子碰撞引擎
+  - 场地适配 240×190 屏幕；圆形/矩形/椭圆/六角均铺满，底部留参数区
+  - 主页面全屏场地 + 5 行小字参数；编码器默认调场地大小，按下进设置
+  - 设置页沿用 MIDI 列表；加球/加速器显示数量，RESET 直接按；SHAPE 可选
+  - 所有参数可绑定到主页面编码器；V/OCT 1/2/5、GATE/TRIG 极性、FX SEND 可调
+  - 输出：G1 CV=V/OCT、G2 CV=FX SEND、G1 Gate=GATE、G2 Gate=TRIG
+  - 屏幕 30fps 全场刷新；设置页不刷场地，避免闪屏
 
 ## 6. 当前状态（2026-10-22）
-- 当前固件：`firmware\midi2cv_20261022_ui.uf2`
+- 当前固件：`firmware\midi2cv_random_20261022.uf2`
   - 16MB flash + `boot2_w25q128jvxq_4` + TinyUSB
   - CPU **420MHz**（PLL 校验通过；失败回退 125MHz）
   - 屏幕 **52.5MHz SCLK**（整数分频），整帧约 17.55ms，UI 约 50fps
 - 已验证：左半组1–4 CV/Gate、MIDI ch1–4、屏幕 UI、编码器选择/编辑/保存、颜色正常
 - 已验证：MIDI 空闲和 clock 模式均不再红闪/花屏
 - Clock 模式：8 路 C1–C8，BPM 20–300，24 个分数，PLAY 手动启停，4 个 MIDI 通道仍可用
-- 模式隔离：MIDI/暂停时无 clock 定时器；播放才注册，暂停/退出立即取消
+- Random 模式：IO23 进入；12 球粒子场、碰撞发出 V/OCT/GATE/TRIG/FX；设置/绑定已接
+- 模式隔离：MIDI/暂停时无 clock 定时器；播放才注册，暂停/退出立即取消；Random 下定时器关闭
+- Random 输出映射：G1 CV=V/OCT、G2 CV=FX、G1 Gate=GATE、G2 Gate=TRIG
 - 未验证：右半组5–8、EEPROM 断电保持、DAC 精度、私有总线
 - 超频结论：420/432 稳定，436+ 不稳定；500 从未真正跑起来
 - 屏幕结论：52.5MHz 稳定；62.5MHz 小数分频动态刷新红屏，70MHz+ 颜色错误
@@ -226,7 +247,7 @@
 ## 7. 下次继续
 1. 焊右半 5–8 组，逐路测 CV/Gate
 2. 断电重启，确认通道/clock 设置能从 EEPROM 恢复
-3. IO23 预留功能（用户后续定义）
+3. Random 模式实机验证：场地绘制、输出映射、按键/编码器、EEPROM 恢复
 4. 私有总线（GP14，PIO UART，帧格式见 `vcv-rack/src/PrivateBus.hpp`）
 5. 快速转动若跳步，加 **200µs** 编码器消抖（不要 1ms）
 6. 需要时再做 DAC 输出精度校准
