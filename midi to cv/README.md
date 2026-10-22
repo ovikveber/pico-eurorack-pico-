@@ -9,7 +9,7 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
 > **状态：开发中。** PCB 已于 2026-10-22 到货；左半 4 组 CV/Gate 已焊并验证，
 > ST7789 屏幕 + 编码器通道设置 UI 已完成。当前固件：
 > `firmware/midi2cv_20261022_ui.uf2`。CPU 420MHz（PLL 校验，失败回退 125MHz），
-> 屏幕 SCLK 62.5MHz。右半 5–8 组、私有总线和校准仍待做。
+> 屏幕 SCLK 52.5MHz。右半 5–8 组、私有总线和校准仍待做。
 
 ## 功能
 
@@ -17,12 +17,13 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
 - CV 支持 **1V / 2V / 5V per octave**；Gate 极性 **+ / -** 可设置
 - ST7789 240×240 单列可滚动 UI：
   - MIDI 模式：V1–V8、GATE、V/OCT，共 10 行；通道行有蓝色通道条和 gate 指示灯
-  - Clock 模式（IO24）：组1=RUN/RESET，组2–4 六个插孔=C1–C6，组5–8 仍是 MIDI V5–V8
+  - Clock 模式（IO24）：组1–4 八个插孔=C1–C8，组5–8 仍是 MIDI V5–V8
 - EC11 编码器：旋转选行（1px 蓝框），按下进入编辑（橙框），再按退出并保存
-- Clock：BPM 20–300 + docB PwmClock 的 24 个分数分频，RUN=TRIG/HOLD，RESET 启动脉冲
-- 编码器使用 GPIO 中断，屏幕刷新期间不会漏步；指示灯只在状态变化时局部刷新
+- Clock：BPM 20–300 + docB PwmClock 的 24 个分数分频；PLAY 行按编码器启动/暂停
+- Clock 默认暂停；MIDI Start/Stop/Continue 也可控制；无 RUN/RESET 硬件输出
+- 编码器使用 GPIO 中断；指示灯只在状态变化时局部刷新；MIDI 模式不注册 clock 定时器
 - RP2040 420MHz（1.3V，PLL/时钟源校验；失败回退 125MHz）
-- ST7789 SCLK 62.5MHz（12mA + fast slew），整帧约 14.75ms
+- ST7789 SCLK 52.5MHz（整数分频，12mA + fast slew），整帧约 17.55ms
 - USB 描述符固定，避免 Windows 和 FL Studio 累积幽灵设备
 - 私有数字总线（GP14）已预留，尚未实现
 
@@ -109,7 +110,7 @@ of each voice.
 > **Status: in development.** The PCB arrived on 2026-10-22; the left 4 CV/Gate groups are
 > soldered and verified, and the ST7789 + encoder channel UI is implemented. Current
 > firmware: `firmware/midi2cv_20261022_ui.uf2`. CPU runs at 420 MHz (PLL/source verified,
-> falls back to 125 MHz); display SCLK is 62.5 MHz. Groups 5–8, the private bus and
+> falls back to 125 MHz); display SCLK is 52.5 MHz. Groups 5–8, the private bus and
 > calibration are still pending.
 
 ## Features
@@ -118,14 +119,15 @@ of each voice.
 - CV range **1V / 2V / 5V per octave**; gate polarity **+ / -**
 - ST7789 240x240 single-column scrolling UI:
   - MIDI mode: V1–V8, GATE, V/OCT (10 rows); channel rows have a blue bar and gate LED
-  - Clock mode (IO24): group 1 = RUN/RESET, groups 2–4's six jacks = C1–C6,
+  - Clock mode (IO24): groups 1–4's eight jacks = C1–C8,
     groups 5–8 remain MIDI V5–V8
 - EC11 encoder: rotate to select a row (1px blue box), press to edit (orange box),
   press again to exit and save
-- Clock: BPM 20–300 + the 24 docB PwmClock ratios, RUN = TRIG/HOLD, RESET pulse on start
-- Encoder runs on GPIO interrupts; LEDs only update locally when their state changes
+- Clock: BPM 20–300 + the 24 docB PwmClock ratios; the PLAY row starts/pauses
+- Clock defaults to paused; MIDI Start/Stop/Continue also work; no RUN/RESET hardware out
+- Encoder runs on GPIO interrupts; LEDs update locally on change; MIDI mode has no clock timer
 - RP2040 at 420 MHz (1.3 V, PLL/clock-source verified; falls back to 125 MHz)
-- ST7789 SCLK 62.5 MHz (12 mA + fast slew), full frame ~14.75 ms
+- ST7789 SCLK 52.5 MHz (integer divider, 12 mA + fast slew), full frame ~17.55 ms
 - Fixed USB descriptors so Windows and FL Studio do not accumulate ghost devices
 - Private digital bus (GP14) is reserved but not implemented yet
 
@@ -170,7 +172,7 @@ rp2040:rp2040:generic:flash=16777216_0,boot2=boot2_w25q128jvxq_4_padded_checksum
 Libraries: Adafruit TinyUSB, EEPROM (bundled with the RP2040 core).
 
 At runtime the firmware sets the CPU to **420 MHz** (1.3 V, PLL/clock-source verified,
-falls back to 125 MHz) and the display SCLK to **62.5 MHz**. `firmware/oc_test` is the
+falls back to 125 MHz) and the display SCLK to **52.5 MHz** (integer divider). `firmware/oc_test` is the
 overclock verification tool: 420/432 MHz were stable; 436 MHz and above reset or hang.
 The old 500 MHz reading was `clock_get_hz` lying; the clock was actually on 48 MHz/ROSC.
 

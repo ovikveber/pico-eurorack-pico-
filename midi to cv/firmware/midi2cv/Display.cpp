@@ -257,3 +257,5 @@ void displaySetSclkForSys(float mhz, uint32_t sysKhz) {
   if (lcdSm >= 0) pio_sm_set_clkdiv(lcdPio, lcdSm, lcdClkDiv);
 }
 
+
+

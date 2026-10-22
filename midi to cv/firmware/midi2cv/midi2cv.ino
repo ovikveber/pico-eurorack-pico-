@@ -75,7 +75,7 @@ static const uint8_t dacCh[8]   = {  1,  3,  5,  7,  0,  2,  4,  6 };
 #define CV_FULLSCALE_V 5.0f
 #define ENC_TRANS_PER_STEP 2
 
-#define NCLK 6
+#define NCLK 8
 static const char* CLK_LABELS[] = {
   "16/1", "8/1", "4/1", "2/1", "1/1", "3/4", "1/2", "3/8",
   "1/3", "1/4", "3/16", "1/6", "1/8", "3/32", "1/12", "1/16",
@@ -124,17 +124,15 @@ static uint8_t noteCnt[NVOICE] = { 0 };
 static volatile bool gDirty = true;
 
 static volatile bool clockMode = false;
-static volatile bool runMode = 0;       // 0=HOLD, 1=TRIG
+static volatile bool clockRunning = false;
+static volatile bool clockArmed = false;
 static volatile uint16_t bpm = 120;
-static const uint8_t DEF_DIV[NCLK] = { 9, 13, 15, 8, 11, 14 };
-static volatile uint8_t divIdx[NCLK] = { 9, 13, 15, 8, 11, 14 };
+static const uint8_t DEF_DIV[NCLK] = { 9, 13, 15, 8, 11, 14, 4, 6 };
+static volatile uint8_t divIdx[NCLK] = { 9, 13, 15, 8, 11, 14, 4, 6 };
 static volatile uint32_t clkPhase[NCLK] = { 0 };
 static volatile bool clkState[NCLK] = { false };
-static volatile bool runOut = false;
-static volatile bool resetOut = false;
-static volatile uint32_t resetUs = 0;
-static volatile uint32_t runPulseUs = 0;
 static repeating_timer_t clkTimer;
+static bool clkTimerActive = false;
 
 // ---------------- settings ----------------
 struct Cfg {
@@ -144,34 +142,30 @@ struct Cfg {
   uint8_t ginv;
   uint16_t bpm;
   uint8_t div[NCLK];
-  uint8_t runMode;
 };
 static bool cfgDirty = false;
 static uint32_t cfgMs = 0;
 
 static void cfgLoad() {
   Cfg c; EEPROM.get(0, c);
-  if (c.magic != 0x5D) {
+  if (c.magic != 0x5E) {
     for (int v = 0; v < NVOICE; v++) c.ch[v] = v + 1;
     c.voct = 1; c.ginv = 0; c.bpm = 120;
     for (int i = 0; i < NCLK; i++) c.div[i] = DEF_DIV[i];
-    c.runMode = 0;
-    c.magic = 0x5D;
+    c.magic = 0x5E;
   }
   for (int v = 0; v < NVOICE; v++) chan[v] = (c.ch[v] >= 1 && c.ch[v] <= 16) ? c.ch[v] : (v + 1);
   voctN = (c.voct == 1 || c.voct == 2 || c.voct == 5) ? c.voct : 1;
   gateInv = c.ginv ? 1 : 0;
   bpm = (c.bpm >= 20 && c.bpm <= 300) ? c.bpm : 120;
   for (int i = 0; i < NCLK; i++) divIdx[i] = (c.div[i] < DIV_N) ? c.div[i] : DEF_DIV[i];
-  runMode = c.runMode ? 1 : 0;
 }
 static void cfgSave() {
-  Cfg c; c.magic = 0x5D;
+  Cfg c; c.magic = 0x5E;
   for (int v = 0; v < NVOICE; v++) c.ch[v] = chan[v];
   c.voct = voctN; c.ginv = gateInv;
   c.bpm = bpm;
   for (int i = 0; i < NCLK; i++) c.div[i] = divIdx[i];
-  c.runMode = runMode;
   EEPROM.put(0, c); EEPROM.commit();
 }
 
@@ -196,34 +190,14 @@ static void updateOutputs() {
 
 // ---------------- clock generation ----------------
 static void setClockOutput(uint8_t i, bool on) {
-  uint8_t v = 1 + i / 2;
+  uint8_t v = i / 2;
   if (i % 2 == 0) digitalWrite(gatePin[v], on ? HIGH : LOW);
   else dacWriteUpdateRaw(dacCh[v], on ? 65535 : 0);
 }
 
 static bool clockTimerCB(repeating_timer_t*) {
   if (!clockMode) return true;
-
-  if (resetUs) {
-    resetUs = (resetUs > 1000) ? (resetUs - 1000) : 0;
-    bool on = (resetUs > 0);
-    if (on != resetOut) {
-      resetOut = on;
-      dacWriteUpdateRaw(dacCh[0], on ? 65535 : 0);
-    }
-  }
-
-  bool runNow;
-  if (runMode == 0) {
-    runNow = true;
-  } else {
-    if (runPulseUs > 0) runPulseUs = (runPulseUs > 1000) ? (runPulseUs - 1000) : 0;
-    runNow = (runPulseUs > 0);
-  }
-  if (runNow != runOut) {
-    runOut = runNow;
-    digitalWrite(gatePin[0], runNow ? HIGH : LOW);
-  }
+  if (!clockRunning) return true;
 
   for (int i = 0; i < NCLK; i++) {
     uint32_t period = (uint32_t)(60000000.0f / (float)bpm * CLK_TICKS[divIdx[i]]);
@@ -238,20 +212,66 @@ static bool clockTimerCB(repeating_timer_t*) {
   return true;
 }
 
+static void clockTimerAdd() {
+  if (!clkTimerActive)
+    clkTimerActive = add_repeating_timer_us(-1000, clockTimerCB, nullptr, &clkTimer);
+}
+
+static void clockTimerCancel() {
+  if (clkTimerActive) {
+    cancel_repeating_timer(&clkTimer);
+    clkTimerActive = false;
+  }
+}
+
+static void clockOutputsLow() {
+  noInterrupts();
+  for (int i = 0; i < NCLK; i++) {
+    clkState[i] = false;
+    setClockOutput(i, false);
+  }
+  interrupts();
+}
+
 static void clockStart() {
+  clockTimerCancel();
+  clockMode = true;
+  clockRunning = false;
+  clockArmed = true;
   for (int i = 0; i < NCLK; i++) { clkPhase[i] = 0; clkState[i] = false; }
   for (int v = 0; v < 4; v++) { noteCnt[v] = 0; gate[v] = false; }
-  resetUs = 100000;
-  resetOut = false;
-  runPulseUs = (runMode ? 100000 : 0);
-  runOut = false;
-  clockMode = true;
+  clockOutputsLow();
   updateOutputs();
 }
 
 static void clockStop() {
+  clockTimerCancel();
+  clockRunning = false;
   clockMode = false;
+  clockArmed = false;
   updateOutputs();
+}
+
+static void clockSetRunning(bool on) {
+  if (on) {
+    if (clockArmed) {
+      for (int i = 0; i < NCLK; i++) clkPhase[i] = 0;
+      clockArmed = false;
+    }
+    noInterrupts();
+    clockRunning = true;
+    interrupts();
+    clockTimerAdd();
+  } else {
+    clockTimerCancel();
+    noInterrupts();
+    clockRunning = false;
+    for (int i = 0; i < NCLK; i++) {
+      clkState[i] = false;
+      setClockOutput(i, false);
+    }
+    interrupts();
+  }
 }
 
 // ---------------- MIDI ----------------
@@ -273,6 +293,20 @@ static void midiTask() {
   while (usb_midi.readPacket(pkt)) {
     uint8_t status = pkt[1];
     if (status < 0x80) continue;
+
+    if (status == 0xFA) {              // Start
+      if (clockMode) { clockArmed = true; clockSetRunning(true); }
+      continue;
+    }
+    if (status == 0xFB) {              // Continue
+      if (clockMode) clockSetRunning(true);
+      continue;
+    }
+    if (status == 0xFC) {              // Stop
+      if (clockMode) clockSetRunning(false);
+      continue;
+    }
+
     uint8_t type = status & 0xF0, midiCh = (status & 0x0F) + 1;
     for (int v = 0; v < NVOICE; v++) {
       if (clockMode && v < 4) continue;
@@ -305,7 +339,7 @@ static void encISR() {
 }
 
 // ---------------- single-column UI ----------------
-enum UiType : uint8_t { UI_CH, UI_CLK, UI_TEMPO, UI_GATE, UI_VOCT, UI_RUN, UI_RUNSTAT };
+enum UiType : uint8_t { UI_CH, UI_CLK, UI_TEMPO, UI_GATE, UI_VOCT, UI_PLAY };
 struct UiItem { uint8_t type; uint8_t index; };
 
 static UiItem  uiItems[16];
@@ -327,7 +361,7 @@ static uint8_t uiLedCache[16];
 #define UI_W     236
 #define DOT_SIZE 12
 
-static bool uiSelectable(uint8_t i) { return uiItems[i].type != UI_RUNSTAT; }
+static bool uiSelectable(uint8_t) { return true; }
 
 static void uiClampWindow() {
   if (uiSel < uiFirst) uiFirst = uiSel;
@@ -344,11 +378,11 @@ static void uiBuildItems() {
   } else {
     for (int i = 0; i < NCLK; i++) uiItems[uiCount++] = { UI_CLK, (uint8_t)i };
     for (int i = 4; i < 8; i++) uiItems[uiCount++] = { UI_CH, (uint8_t)i };
-    uiItems[uiCount++] = { UI_RUNSTAT, 0 };
+    uiItems[uiCount++] = { UI_PLAY, 0 };
     uiItems[uiCount++] = { UI_TEMPO, 0 };
     uiItems[uiCount++] = { UI_GATE, 0 };
     uiItems[uiCount++] = { UI_VOCT, 0 };
-    uiItems[uiCount++] = { UI_RUN, 0 };
+    
   }
   uiSel = 0;
   uiFirst = 0;
@@ -366,7 +400,7 @@ static void uiSyncLedCache() {
     switch (uiItems[i].type) {
       case UI_CH: v = gate[uiItems[i].index] ? 1 : 0; break;
       case UI_CLK: v = clkState[uiItems[i].index] ? 1 : 0; break;
-      case UI_RUNSTAT: v = (runOut ? 1 : 0) | (resetOut ? 2 : 0); break;
+      case UI_PLAY: v = clockRunning ? 1 : 0; break;
       default: break;
     }
     uiLedCache[i] = v;
@@ -436,10 +470,6 @@ static void uiHandleRotation(int16_t delta) {
       gDirty = true;
       break;
     }
-    case UI_RUN:
-      runMode ^= 1;
-      runPulseUs = runMode ? 100000 : 0;
-      break;
     default:
       break;
   }
@@ -448,6 +478,10 @@ static void uiHandleRotation(int16_t delta) {
 }
 
 static void uiHandlePress() {
+  if (uiItems[uiSel].type == UI_PLAY) {
+    clockSetRunning(!clockRunning);
+    return;
+  }
   uiEdit = !uiEdit;
   if (!uiEdit) {
     cfgSave();
@@ -469,8 +503,10 @@ static void uiRender() {
   const uint16_t selCol = rgb565(70, 180, 255);
 
   displayClear(bg);
-  displayText(6, 4, "MIDI TO CV", accent, 1);
-  displayText(180, 4, clockMode ? "CLOCK" : "MIDI", clockMode ? accent : dim, 1);
+  displayText(6, 4, "OV-MIDI", accent, 1);
+  const char* mode = clockMode ? "CLOCK" : "MIDI";
+  displayText(237 - (int)strlen(mode) * 6, 4, mode, clockMode ? accent : dim, 1);
+  displayText(69, 4, "MADE BY OVIKVEBER", dim, 1);
   displayFillRect(0, 15, 240, 1, rgb565(40, 46, 56));
 
   int by = (int)lroundf(uiSelY);
@@ -508,11 +544,9 @@ static void uiRender() {
         uiDrawDotFb(UI_X + 220, y + 5, clkState[k], accent);
         break;
       }
-      case UI_RUNSTAT:
-        displayText(UI_X + 12, ty, "RUN", dim, 1);
-        uiDrawDotFb(UI_X + 48, y + 5, runOut, accent);
-        displayText(UI_X + 78, ty, "RST", dim, 1);
-        uiDrawDotFb(UI_X + 112, y + 5, resetOut, accent);
+      case UI_PLAY:
+        displayText(UI_X + 12, ty, "PLAY", dim, 1);
+        uiDrawDotFb(UI_X + 220, y + 5, clockRunning, rgb565(80, 220, 120));
         break;
       case UI_TEMPO:
         snprintf(buf, sizeof(buf), "BPM  %d", bpm);
@@ -525,10 +559,6 @@ static void uiRender() {
       case UI_VOCT:
         snprintf(buf, sizeof(buf), "V/OCT  %d", voctN);
         displayText(UI_X + 8, ty, buf, sel ? fg : rgb565(180, 186, 196), 1);
-        break;
-      case UI_RUN:
-        displayText(UI_X + 8, ty, runMode ? "RUN  TRIG" : "RUN  HOLD",
-                    sel ? fg : rgb565(180, 186, 196), 1);
         break;
     }
     displayFillRect(UI_X, y + UI_ROW_H - 1, UI_W, 1, rgb565(40, 46, 56));
@@ -562,14 +592,12 @@ static void uiFlashDots() {
         }
         break;
       }
-      case UI_RUNSTAT: {
-        uint8_t cur = (runOut ? 1 : 0) | (resetOut ? 2 : 0);
-        if ((uiLedCache[i] & 3) != cur) {
-          displayFillSquare(UI_X + 48, y + 5, DOT_SIZE,
-                            (cur & 1) ? accent : rgb565(38, 44, 54));
-          displayFillSquare(UI_X + 112, y + 5, DOT_SIZE,
-                            (cur & 2) ? accent : rgb565(38, 44, 54));
-          uiLedCache[i] = (uiLedCache[i] & ~3u) | cur;
+      case UI_PLAY: {
+        uint8_t cur = clockRunning ? 1 : 0;
+        if ((uiLedCache[i] & 1) != cur) {
+          displayFillSquare(UI_X + 220, y + 5, DOT_SIZE,
+                            cur ? rgb565(80, 220, 120) : rgb565(38, 44, 54));
+          uiLedCache[i] = (uiLedCache[i] & ~1u) | cur;
         }
         break;
       }
@@ -670,10 +698,9 @@ void setup() {
   dacInit();
   updateOutputs();
   displayInit();
-  displaySetSclkForSys(62.5f, gSysKhz);
+  displaySetSclkForSys(52.5f, gSysKhz);
 
   uiBuildItems();
-  add_repeating_timer_us(-1000, clockTimerCB, nullptr, &clkTimer);
 }
 
 void loop() {
@@ -684,6 +711,20 @@ void loop() {
   uiProcess();
   if (cfgDirty && millis() - cfgMs > 800) { cfgDirty = false; cfgSave(); }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

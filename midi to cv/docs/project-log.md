@@ -18,9 +18,9 @@
   - 结论：选 **420MHz**（1.3V，boot2 /4 → flash 105MHz，安全），失败回退 125MHz
   - oc_test 里看门狗必须在超频前启用，否则 450 这类挂死不会自动恢复
 - **屏幕最终频率**：
-  - 主固件 **420MHz CPU + 62.5MHz SCLK**（420 ÷ 2 ÷ 3.36）
-  - SCK/MOSI 用 **12mA + fast slew**；该组合实测颜色正常
-  - 375MHz 下 62.5MHz 是整数分频（÷3.0），也正常
+  - 主固件 **420MHz CPU + 52.5MHz SCLK**（420 ÷ 2 ÷ **4.0**，整数分频）
+  - SCK/MOSI 用 **12mA + fast slew**；52.5MHz 下颜色/刷新稳定
+  - 62.5MHz 在 420 下是 3.36 小数分频，动态刷新会间歇红屏/花屏，已放弃
   - 70MHz 起偏红（PIO 140MHz+）；84/105MHz 颜色错误（PIO 168/210MHz），
     属于数据位错误，不是 RGB 顺序，无法用补色修好
 - 已编译并烧录主固件：`firmware\midi2cv_20261022_ui.uf2`
@@ -67,22 +67,24 @@
     - 通道行：`Vn`、蓝色通道条、`CH n`、12px gate 指示灯
     - GATE 显示 **+ / -**；V/OCT 只支持 **1 / 2 / 5**（8V/oct 无法输出）
   - **CLOCK 模式（IO24 进入/退出）**：
-    - 组1：Gate=**RUN**，CV=**RESET**
-    - 组2–4 的 6 个插孔 = **C1–C6**
-      - C1=组2 Gate，C2=组2 CV，C3=组3 Gate，C4=组3 CV，
-        C5=组4 Gate，C6=组4 CV
+    - 组1–4 的 **8 个插孔全部是 clock**：C1–C8
+      - C1=组1 Gate，C2=组1 CV，C3=组2 Gate，C4=组2 CV，
+        C5=组3 Gate，C6=组3 CV，C7=组4 Gate，C8=组4 CV
     - 组5–8 仍是 MIDI **V5–V8**
-    - 单列列表：C1–C6、V5–V8、RUN/RST 状态行、BPM、GATE、V/OCT、RUN
+    - 单列列表：C1–C8、V5–V8、PLAY、BPM、GATE、V/OCT（共 16 行）
     - Clock 分频用 docB PwmClock 的 **24 个分数值**（16/1 … 1/128），
       主 tempo 为 **BPM 20–300**，周期 = 60/BPM × 分数拍数
-    - RUN 模式 **TRIG / HOLD**；进入 clock 时 RUN 按模式启动，RESET 发 100ms 脉冲
-    - RUN/RST 状态行单独显示两个 12px 指示灯
-  - GPIO 中断读编码器；IO23 预留未用
-- ST7789 240×240：PIO SPI + DMA，**420MHz CPU / 62.5MHz SCLK**，
+    - **PLAY 行**：选中后按编码器启动/暂停；默认暂停，PLAY 灯灭
+    - 第一次启动从相位 0 开始；暂停保留相位，再启动继续
+    - USB MIDI Start/Stop/Continue 也可控制 clock（只在 clock 模式生效）
+    - 无 RUN/RESET 硬件输出；组1 的两个插孔已改成 clock
+  - GPIO 中断读编码器；IO23 预留未用（Pico 装板后/箱内，不靠物理按键）
+- ST7789 240×240：PIO SPI + DMA，**420MHz CPU / 52.5MHz SCLK**，
   SCK/MOSI 12mA + fast slew，`MADCTL=0x60`（90° 方向）
 - 屏幕闪烁修复：不再持续整帧刷新；LED 仅在状态变化时用局部 12px 小方块刷新，
-  每个局部窗口后加 20µs 稳定时间；MIDI 空闲和 clock 模式均不再闪
-- 所有设置（通道、GATE、V/OCT、BPM、6 个分频、RUN 模式）写入 EEPROM
+  每个局部窗口后加 20µs；MIDI 空闲和 clock 模式均不再红闪/花屏
+- **模式隔离**：MIDI/暂停时 clock 定时器根本未注册；播放才 add，暂停/退出立即 cancel
+- 所有设置（通道、GATE、V/OCT、BPM、8 个分频）写入 EEPROM
 - **待做**：私有总线(PIO UART, GP14)、右半 5–8 组、DAC 校准。
 
 ## 4. 进度
@@ -162,14 +164,15 @@
 - 与固件一致：`gatePin[]={22,21,20,19,...}`、`dacCh[]={B,D,F,H,...}`
 - 测试音符：ch1..ch4；`NOTE0=24 (C1)=0V`，每 +12 半音 = +1V
 - **2026-10-22 屏幕 UI（已烧 `midi2cv_20261022_ui.uf2`）**：
-  - 屏幕列出 V1..V8 及各自的 MIDI 通道（`CH 1..16`）
-  - 导航模式：旋转选择行（蓝色框）；按下进入编辑
-  - 编辑模式：该行橙框/底色高亮；旋转改通道 1..16；再按退出并保存 EEPROM
+  - MIDI 模式列出 V1..V8 + GATE + V/OCT；Clock 模式列出 C1–C8、V5–V8、PLAY、设置
+  - 导航模式：旋转选择行（1px 蓝色框）；按下进入编辑
+  - 编辑模式：该行橙框/底色高亮；再按退出并保存 EEPROM
   - 编码器用 GPIO 中断，推屏期间不会漏步
-  - 选择框/高亮带用弹簧动画（stiffness 0.30 / damping 0.55，约 60fps），
-    有轻微过冲；62.5MHz 下整帧刷新约 14.75ms，动画不再做局部 band
+  - 选择框用弹簧动画（stiffness 0.30 / damping 0.55，约 60fps），
+    有轻微过冲；52.5MHz 下整帧刷新约 17.55ms
   - 面板方向：ST7789 `MADCTL=0x60`（纠正 90° 旋转；原来是 0x00）
-  - V/oct 和 Gate 极性暂时固定为 **1V/oct、正极性**，没有 UI（后续可加第二页）
+  - V/oct 为 **1 / 2 / 5**；GATE 极性 **+ / -**
+  - Clock 默认暂停；PLAY 行按编码器启动/暂停；无 RUN/RESET 硬件输出
 - **2026-10-22 排查结论**：ch1 曾无反应，串口抓到 `MIDI st=90` 说明 USB-MIDI 正常；
   原因是编码器配置改过通道。强制 ch1..8 + 自检后，组1–4 CV/Gate 均正常。
   最终 UI 已可直观查看/修改通道，不再需要盲操作。
@@ -192,26 +195,33 @@
   - 超频实测：400/420/432MHz 稳定（420 实测 421）；436 复位；440/448/450 挂死；
     500/480/510 是 `clock_get_hz` 假象，实际停在 PLL_USB 48MHz；520 落在 ROSC ~7MHz
   - 固定 **420MHz**，校验 PLL lock + CLK_SYS 源，失败回退 125MHz；flash /4 安全
-  - 屏幕 **62.5MHz**（420÷2÷3.36），SCK/MOSI 12mA + fast slew，颜色正常
-  - 70MHz 起偏红/数据错误，84/105 不可用；62.5 是这块屏的实际可用上限
+  - 屏幕曾用 62.5MHz（420÷2÷3.36 小数分频），后因动态刷新红屏改为 52.5MHz
+  - 70MHz 起偏红/数据错误，84/105 不可用
   - 清理所有串口调试/计时/BRINGUP/超频阶梯；`oc_test` 保留为独立验证工具
 - **2026-10-22 v10（clock 模式 + UI 收尾）**：
   - IO24 进入/退出 clock；组1=RUN/RESET，组2–4 六个插孔=C1–C6，组5–8=MIDI V5–V8
   - 主 BPM + 24 个 docB 风格分频；RUN=TRIG/HOLD
   - UI 单列可滚动；MIDI 10 行、clock 15 行；蓝色通道条、12px 指示灯、1px 细框
   - 修复屏幕间歇红闪/重启：去掉持续整帧刷新，LED 仅在变化时局部刷新
+- **2026-10-22 v11（最终 clock/隔离/屏幕）**：
+  - 组1–4 的 8 个插孔全部做 clock：C1–C8；无 RUN/RESET 硬件输出
+  - Clock 默认暂停；PLAY 行按编码器启动/暂停；MIDI Start/Stop/Continue 也可控制
+  - 暂停/退出立即取消定时器；MIDI 模式根本未注册 clock 定时器
+  - 屏幕 420MHz ÷ 2 ÷ 4.0 = **52.5MHz** 整数分频；12mA + fast slew
+  - 通道条蓝色、CH 文字在条后、12px 指示灯、1px 细框、行间分隔线
 
 ## 6. 当前状态（2026-10-22）
 - 当前固件：`firmware\midi2cv_20261022_ui.uf2`
   - 16MB flash + `boot2_w25q128jvxq_4` + TinyUSB
   - CPU **420MHz**（PLL 校验通过；失败回退 125MHz）
-  - 屏幕 **62.5MHz SCLK**，整帧约 14.75ms，UI 约 60fps
+  - 屏幕 **52.5MHz SCLK**（整数分频），整帧约 17.55ms，UI 约 50fps
 - 已验证：左半组1–4 CV/Gate、MIDI ch1–4、屏幕 UI、编码器选择/编辑/保存、颜色正常
-- 已验证：MIDI 空闲和 clock 模式均不再红闪/重启
-- Clock 模式：BPM 20–300，24 个分数，RUN/RESET，TRIG/HOLD，4 个 MIDI 通道仍可用
+- 已验证：MIDI 空闲和 clock 模式均不再红闪/花屏
+- Clock 模式：8 路 C1–C8，BPM 20–300，24 个分数，PLAY 手动启停，4 个 MIDI 通道仍可用
+- 模式隔离：MIDI/暂停时无 clock 定时器；播放才注册，暂停/退出立即取消
 - 未验证：右半组5–8、EEPROM 断电保持、DAC 精度、私有总线
 - 超频结论：420/432 稳定，436+ 不稳定；500 从未真正跑起来
-- 屏幕结论：62.5MHz 可用；70MHz 起颜色错误（PIO 超速，不是颜色顺序）
+- 屏幕结论：52.5MHz 稳定；62.5MHz 小数分频动态刷新红屏，70MHz+ 颜色错误
 
 ## 7. 下次继续
 1. 焊右半 5–8 组，逐路测 CV/Gate
