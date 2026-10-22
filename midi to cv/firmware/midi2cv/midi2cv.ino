@@ -401,12 +401,17 @@ static void rsWriteOutputs() {
 
 static void rsApplySettings() {
   WorldSettings s;
+  const WorldSettings old = rsWorld.getSettings();
   s.ballScale = rsBall;
   s.ballSpeed = rsSpeed;
   s.waveRange = rsWave;
   s.waveSpeed = rsWSPD;
-  s.pitchRange = rsRange;
-  s.scaleMode = rsScale;
+  s.pitchRange = old.pitchRange;
+  // Keep the old pitch range and scale mode here so setPitchRange()/setScale()
+  // below can detect changes and rebuild the quantizer table. Setting them
+  // first made both setters return early, leaving MAJOR unquantized
+  // (the "+26c" notes) and keeping the old range table.
+  s.scaleMode = old.scaleMode;
   s.ratio = { rsPitch / 100.0f, rsAdsr / 100.0f, rsFxRatio / 100.0f };
   rsWorld.setSettings(s);
   rsWorld.setShape(rsShape);
