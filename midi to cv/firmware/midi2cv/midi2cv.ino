@@ -175,6 +175,7 @@ static float rsGateRemain = 0.0f;
 static float rsTrigRemain = 0.0f;
 static float rsCvVolts = 0.0f;
 static float rsFxVolts = 0.0f;
+static float rsPanVolts = 0.0f;
 static float rsNote = 60.0f;
 static uint32_t rsTrigSeenMs = 0;
 static uint32_t rsLastSim = 0;
@@ -395,6 +396,7 @@ static inline uint16_t voltsToCode(float v) {
 static void rsWriteOutputs() {
   dacWriteUpdateRaw(dacCh[0], voltsToCode(rsCvVolts));
   dacWriteUpdateRaw(dacCh[1], voltsToCode(rsFxVolts));
+  dacWriteUpdateRaw(dacCh[2], voltsToCode(rsPanVolts));
   digitalWrite(gatePin[0], rsGateOn ? (rsGateInv ? LOW : HIGH) : (rsGateInv ? HIGH : LOW));
   digitalWrite(gatePin[1], rsTrigOn ? (rsTrigInv ? LOW : HIGH) : (rsTrigInv ? HIGH : LOW));
 }
@@ -435,10 +437,12 @@ static void rsClearOutputs() {
   rsTrigRemain = 0.0f;
   rsCvVolts = 0.0f;
   rsFxVolts = 0.0f;
+  rsPanVolts = 0.0f;
   digitalWrite(gatePin[0], rsGateInv ? HIGH : LOW);
   digitalWrite(gatePin[1], rsTrigInv ? HIGH : LOW);
   dacWriteUpdateRaw(dacCh[0], 0);
   dacWriteUpdateRaw(dacCh[1], 0);
+  dacWriteUpdateRaw(dacCh[2], 0);
 }
 
 static void rsTick() {
@@ -469,6 +473,7 @@ static void rsTick() {
   for (const auto& ev : rsWorld.getEvents()) {
     rsCvVolts = (ev.note - 60.0f) / 12.0f * (float)rsVoct;
     rsFxVolts = ev.send * 5.0f * ((float)rsFxSend / 100.0f);
+    rsPanVolts = (ev.pan + 1.0f) * 2.5f;
     rsNote = ev.note;
     rsGateOn = true;
     rsTrigOn = true;

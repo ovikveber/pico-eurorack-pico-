@@ -26,8 +26,8 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
 - Clock 默认暂停；MIDI Start/Stop/Continue 也可控制；无 RUN/RESET 硬件输出
 - RandomSynth：12 球起，碰撞生成 V/OCT、GATE、TRIG、FX；设置里有球大小/速度、
   波形、音高范围/音阶、PITCH/ADSR/FX 比例、加球、加速器、重置和 SHAPE
-- RandomSynth 输出：**G1 CV=V/OCT，G2 CV=FX SEND，G1 Gate=GATE，G2 Gate=TRIG**
-  （每组只有 1 个 DAC CV + 1 个 Gate，所以 FX 放在 G2 CV）
+- RandomSynth 输出：**G1 CV=V/OCT，G2 CV=FX SEND，G3 CV=PAN，G1 Gate=GATE，G2 Gate=TRIG**
+  （PAN 为 0–5V，中心 2.5V；每组只有 1 个 DAC CV + 1 个 Gate，所以 FX 放在 G2 CV）
 - RandomSynth 设置：V/OCT 量程 1/2/5、GATE/TRIG 极性、FX SEND 可调；
   BIND 行可把任意参数绑定到主页面编码器（主页面只能绑一个）
 - RandomSynth 连续参数在 UI 上统一为 **0.00–1.00**（最大/最小效果不变）；
@@ -147,8 +147,8 @@ of each voice.
 - RandomSynth: starts with 12 balls; collisions produce V/OCT, GATE, TRIG and FX.
   Settings cover ball size/speed, waves, pitch range/scale, PITCH/ADSR/FX ratios,
   add-ball, booster, reset and SHAPE
-- RandomSynth outputs: **G1 CV=V/OCT, G2 CV=FX SEND, G1 Gate=GATE, G2 Gate=TRIG**
-  (each group has only one DAC CV + one gate, so FX goes to the G2 CV jack)
+- RandomSynth outputs: **G1 CV=V/OCT, G2 CV=FX SEND, G3 CV=PAN, G1 Gate=GATE, G2 Gate=TRIG**
+  (PAN is 0–5 V with 2.5 V center; each group has one DAC CV + one gate)
 - RandomSynth settings: V/OCT range 1/2/5, GATE/TRIG polarity and FX SEND.
   The BIND row binds any parameter to the main-page encoder (one at a time)
 - RandomSynth continuous values display as **0.00–1.00** (min/max effect unchanged);

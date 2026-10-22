@@ -252,6 +252,10 @@
   - 只有 generation 0 的初始波能在墙上产生 **1 个子波**；子波不再继续生
   - 同步修改 `RandomSynth-VCV/src/WorldCV.cpp` 和 `RandomSynth/VCV-Module/src/WorldCV.cpp`
   - 已重新编译 `RandomSynth-VCV/RandomSynth-2.0.1-win-x64.vcvplugin`
+- **2026-10-22 v17（PAN 输出）**：
+  - VCV 新增 PAN 输出：-5V…+5V，取碰撞小球的 X 位置（`ev.pan * 5`）
+  - Pico 新增 PAN 输出：**组3 CV（DAC F）**，0–5V（左 0V、中 2.5V、右 5V）
+  - Random 输出更新：G1 CV=V/OCT、G2 CV=FX、G3 CV=PAN、G1 Gate=GATE、G2 Gate=TRIG
 
 ## 6. 当前状态（2026-10-22）
 - 当前固件：`firmware\midi2cv_random_20261022.uf2`
