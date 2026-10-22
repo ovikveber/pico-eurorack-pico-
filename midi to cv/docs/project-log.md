@@ -89,7 +89,8 @@
     - V/OCT 量程 1/2/5；GATE/TRIG 极性 +/-；FX SEND 0–100%
     - 输出：**G1 CV=V/OCT，G2 CV=FX SEND，G1 Gate=GATE，G2 Gate=TRIG**
       （每组只有 1 个 DAC CV + 1 个 Gate；FX 只能走 G2 CV）
-  - GPIO 中断读编码器；IO23=RANDOM 切换，IO24=MIDI/CLOCK 切换（RANDOM 下忽略 IO24）
+  - GPIO 中断读编码器；IO23=RANDOM 短按；IO24 短按=MIDI/CLOCK，长按 0.8s=RANDOM
+  - 实测 IO24 正常、IO23 无电平变化，判定为 GP23 未接/按钮或焊点问题；加 IO24 长按兜底
 - ST7789 240×240：PIO SPI + DMA，**420MHz CPU / 52.5MHz SCLK**，
   SCK/MOSI 12mA + fast slew，`MADCTL=0x60`（90° 方向）
 - 屏幕闪烁修复：不再持续整帧刷新；LED 仅在状态变化时用局部 12px 小方块刷新，
@@ -237,7 +238,8 @@
 - 已验证：左半组1–4 CV/Gate、MIDI ch1–4、屏幕 UI、编码器选择/编辑/保存、颜色正常
 - 已验证：MIDI 空闲和 clock 模式均不再红闪/花屏
 - Clock 模式：8 路 C1–C8，BPM 20–300，24 个分数，PLAY 手动启停，4 个 MIDI 通道仍可用
-- Random 模式：IO23 进入；12 球粒子场、碰撞发出 V/OCT/GATE/TRIG/FX；设置/绑定已接
+- Random 模式：IO23 短按或长按 IO24 0.8s 进入；12 球粒子场、碰撞发出 V/OCT/GATE/TRIG/FX
+- IO23 实测无反应（IO24 正常），疑似 GP23 未接/按钮焊接；IO23 代码保留
 - 模式隔离：MIDI/暂停时无 clock 定时器；播放才注册，暂停/退出立即取消；Random 下定时器关闭
 - Random 输出映射：G1 CV=V/OCT、G2 CV=FX、G1 Gate=GATE、G2 Gate=TRIG
 - 未验证：右半组5–8、EEPROM 断电保持、DAC 精度、私有总线

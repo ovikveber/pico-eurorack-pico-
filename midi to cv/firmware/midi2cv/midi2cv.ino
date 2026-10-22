@@ -1213,6 +1213,28 @@ static bool uiReadButton(uint8_t pin) {
   return false;
 }
 
+// IO24: short press = MIDI/CLOCK, long press (>=800ms) = RANDOM.
+// IO23 still works as the dedicated RANDOM button when the pad is connected.
+static uint8_t uiReadModeButton() {
+  static uint8_t last = 1, stable = 1;
+  static uint32_t changeMs = 0, downMs = 0;
+  static bool down = false;
+  uint8_t raw = (digitalRead(BTN_MODE) == LOW) ? 0 : 1;
+  if (raw != last) { last = raw; changeMs = millis(); }
+  if (millis() - changeMs < 20 || raw == stable) return 0;
+  stable = raw;
+  if (stable == 0) {
+    down = true;
+    downMs = millis();
+    return 0;
+  }
+  if (down) {
+    down = false;
+    return (millis() - downMs >= 800u) ? 2 : 1;
+  }
+  return 0;
+}
+
 static void uiProcess() {
   int16_t delta;
   noInterrupts();
@@ -1221,14 +1243,14 @@ static void uiProcess() {
   interrupts();
 
   bool pressed = uiReadPress();
-  bool modePressed = uiReadButton(BTN_MODE);
+  uint8_t modeEvent = uiReadModeButton();
   bool randomPressed = uiReadButton(BTN_RANDOM);
 
-  if (randomPressed) {
+  if (randomPressed || modeEvent == 2) {
     toggleRandomMode();
     return;
   }
-  if (modePressed && !randomMode) {
+  if (modeEvent == 1 && !randomMode) {
     toggleClockMode();
     return;
   }

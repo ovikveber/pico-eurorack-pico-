@@ -29,6 +29,7 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
   （每组只有 1 个 DAC CV + 1 个 Gate，所以 FX 放在 G2 CV）
 - RandomSynth 设置：V/OCT 量程 1/2/5、GATE/TRIG 极性、FX SEND 0–100% 可调；
   BIND 行可把任意参数绑定到主页面编码器（主页面只能绑一个）
+- IO23 短按进入 Random；如果 IO23 未接/失效，**长按 IO24 约 0.8 秒**也可进入/退出 Random
 - 编码器使用 GPIO 中断；指示灯只在状态变化时局部刷新；MIDI 模式不注册 clock 定时器
 - RP2040 420MHz（1.3V，PLL/时钟源校验；失败回退 125MHz）
 - ST7789 SCLK 52.5MHz（整数分频，12mA + fast slew），整帧约 17.55ms
@@ -144,6 +145,7 @@ of each voice.
   (each group has only one DAC CV + one gate, so FX goes to the G2 CV jack)
 - RandomSynth settings: V/OCT range 1/2/5, GATE/TRIG polarity and FX SEND 0–100%.
   The BIND row binds any parameter to the main-page encoder (one at a time)
+- IO23 short press enters Random; if IO23 is missing/dead, **hold IO24 ~0.8 s** instead
 - Encoder runs on GPIO interrupts; LEDs update locally on change; MIDI mode has no clock timer
 - RP2040 at 420 MHz (1.3 V, PLL/clock-source verified; falls back to 125 MHz)
 - ST7789 SCLK 52.5 MHz (integer divider, 12 mA + fast slew), full frame ~17.55 ms
