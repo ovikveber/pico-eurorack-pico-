@@ -248,6 +248,10 @@
   - 修复长跑变卡：去掉 updateWaves 每帧 vector 分配，改用固定数组；
     wave hitUids 改固定数组；enforceTypePresence 候选改固定数组
   - 绘制只取最新 10 个场地光效和 16 个波，降低后期渲染负担
+- **2026-10-22 v16（子波限制）**：
+  - 只有 generation 0 的初始波能在墙上产生 **1 个子波**；子波不再继续生
+  - 同步修改 `RandomSynth-VCV/src/WorldCV.cpp` 和 `RandomSynth/VCV-Module/src/WorldCV.cpp`
+  - 已重新编译 `RandomSynth-VCV/RandomSynth-2.0.1-win-x64.vcvplugin`
 
 ## 6. 当前状态（2026-10-22）
 - 当前固件：`firmware\midi2cv_random_20261022.uf2`
