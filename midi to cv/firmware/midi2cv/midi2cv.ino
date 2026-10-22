@@ -1133,7 +1133,7 @@ static void rsRenderMain() {
     float flash = fminf(1.0f, fmaxf(0.0f, b.flash / 0.22f));
     int cx = (int)lroundf(b.pos.x);
     int cy = (int)lroundf(b.pos.y);
-    int glowR = (int)(b.radius * (2.6f + 0.7f * flash));
+    int glowR = (int)(b.radius * (1.35f + 0.25f * flash));
     uint8_t glowA = (uint8_t)(40.0f + 110.0f * flash);
     displayFillCircleAlpha(cx, cy, glowR, c, glowA);
     displayFillCircle(cx, cy, br,
