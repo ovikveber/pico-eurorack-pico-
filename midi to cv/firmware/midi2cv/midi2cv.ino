@@ -1061,7 +1061,11 @@ static void rsNoteText(char* out, size_t n) {
   int midi = (int)lroundf(rsNote);
   if (midi < 0) midi = 0;
   if (midi > 127) midi = 127;
-  snprintf(out, n, "%s%d", names[midi % 12], midi / 12 - 1);
+  int cents = (int)lroundf((rsNote - (float)midi) * 100.0f);
+  if (cents != 0)
+    snprintf(out, n, "%s%d%+dc", names[midi % 12], midi / 12 - 1, cents);
+  else
+    snprintf(out, n, "%s%d", names[midi % 12], midi / 12 - 1);
 }
 
 static void rsRenderMain() {
@@ -1132,8 +1136,6 @@ static void rsRenderMain() {
     int glowR = (int)(b.radius * (2.6f + 0.7f * flash));
     uint8_t glowA = (uint8_t)(40.0f + 110.0f * flash);
     displayFillCircleAlpha(cx, cy, glowR, c, glowA);
-    if (flash > 0.02f)
-      displayDrawCircle(cx, cy, glowR, rsMixColor(c, rgb565(255, 255, 255), 0.55f), 1);
     displayFillCircle(cx, cy, br,
                       b.flash > 0.0f ? rsMixColor(c, rgb565(255, 255, 255), 0.35f + 0.45f * flash) : c);
     displayDrawCircle(cx, cy, br, rgb565(230, 235, 240), 1);
@@ -1143,9 +1145,9 @@ static void rsRenderMain() {
   displayFillRect(0, bottomY, 240, 240 - bottomY, rgb565(5, 7, 10));
   displayFillRect(0, bottomY, 240, 1, rgb565(38, 44, 54));
 
-  char l[32];
+  char l[40];
   snprintf(l, sizeof(l), "KNOB %s", RB_NAMES[rsBind]);
-  displayText(2, bottomY + 10, l, accent, 1);
+  displayText(2, bottomY + 9, l, accent, 1);
 
   auto rightText = [](int y, const char* s, uint16_t c) {
     int x = 238 - (int)strlen(s) * 6;
@@ -1153,16 +1155,20 @@ static void rsRenderMain() {
     displayText(x, y, s, c, 1);
   };
 
-  char note[8];
+  char note[12];
   rsNoteText(note, sizeof(note));
   snprintf(l, sizeof(l), "OUT %s", note);
   rightText(bottomY + 1, l, accent);
 
   bool trigShow = rsTrigOn || (rsTrigSeenMs != 0 && millis() - rsTrigSeenMs < 120u);
-  snprintf(l, sizeof(l), "GATE %s", rsGateOn ? "ON" : "OFF");
-  rightText(bottomY + 10, l, rsGateOn ? rgb565(80, 220, 120) : dim);
-  snprintf(l, sizeof(l), "TRIG %s", trigShow ? "ON" : "OFF");
-  rightText(bottomY + 19, l, trigShow ? rgb565(255, 164, 58) : dim);
+  char g[10], t[10];
+  snprintf(g, sizeof(g), "GATE %s", rsGateOn ? "ON" : "OFF");
+  snprintf(t, sizeof(t), "TRIG %s", trigShow ? "ON" : "OFF");
+  int gw = (int)strlen(g) * 6, tw = (int)strlen(t) * 6, gap = 6;
+  int gx = 238 - gw - gap - tw;
+  if (gx < 2) gx = 2;
+  displayText(gx, bottomY + 9, g, rsGateOn ? rgb565(80, 220, 120) : dim, 1);
+  displayText(gx + gw + gap, bottomY + 9, t, trigShow ? rgb565(255, 164, 58) : dim, 1);
 
   displayFlush();
 }
