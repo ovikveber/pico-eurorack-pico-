@@ -1,0 +1,223 @@
+#include <Arduino.h>
+#include <hardware/pio.h>
+#include <hardware/dma.h>
+#include <hardware/gpio.h>
+#include <hardware/clocks.h>
+#include "lcd_spi.pio.h"
+#include "font5x7.h"
+#include "Display.h"
+
+#define PIN_SCK   10
+#define PIN_MOSI  9
+#define PIN_RST   8
+#define PIN_DC    7
+#define PIN_CS    6
+#define PIN_BL    5
+
+#define LCD_W 240
+#define LCD_H 240
+
+static uint16_t fb[LCD_W * LCD_H];
+static PIO lcdPio = pio0;
+static int lcdSm = -1;
+static uint lcdOff = 0;
+static int dmaTx = -1;
+static float lcdClkDiv = 2.0f;      // 31.25 MHz at 125 MHz
+static const uint8_t lcdMadctl = 0x60;   // rotate 90 deg (portrait -> landscape)
+
+static inline float sclkHz() {
+  return (float)clock_get_hz(clk_sys) / (2.0f * lcdClkDiv);
+}
+
+// ---------------- bit-bang for commands / window ----------------
+static void bbByte(uint8_t b) {
+  for (int i = 7; i >= 0; i--) {
+    gpio_put(PIN_MOSI, (b >> i) & 1); busy_wait_us_32(1);
+    gpio_put(PIN_SCK, 1);             busy_wait_us_32(1);
+    gpio_put(PIN_SCK, 0);             busy_wait_us_32(1);
+  }
+}
+static void lcdCmdBB(uint8_t c) {
+  gpio_put(PIN_DC, 0); gpio_put(PIN_CS, 0); bbByte(c); gpio_put(PIN_CS, 1);
+}
+static void lcdDataBB(const uint8_t* d, size_t n) {
+  gpio_put(PIN_DC, 1); gpio_put(PIN_CS, 0);
+  while (n--) bbByte(*d++);
+  gpio_put(PIN_CS, 1);
+}
+static void lcdCmdDataBB(uint8_t c, const uint8_t* d, size_t n) {
+  lcdCmdBB(c);
+  if (n) lcdDataBB(d, n);
+}
+
+static void bbModeBegin() {
+  pio_sm_set_enabled(lcdPio, lcdSm, false);
+  gpio_set_function(PIN_SCK,  GPIO_FUNC_SIO);
+  gpio_set_function(PIN_MOSI, GPIO_FUNC_SIO);
+  gpio_set_dir(PIN_SCK, OUTPUT);
+  gpio_set_dir(PIN_MOSI, OUTPUT);
+  gpio_put(PIN_SCK, 0);
+  gpio_put(PIN_MOSI, 0);
+}
+static void bbModeEnd() {
+  pio_gpio_init(lcdPio, PIN_SCK);
+  pio_gpio_init(lcdPio, PIN_MOSI);
+  pio_sm_set_consecutive_pindirs(lcdPio, lcdSm, PIN_SCK, 1, true);
+  pio_sm_set_consecutive_pindirs(lcdPio, lcdSm, PIN_MOSI, 1, true);
+  pio_sm_set_enabled(lcdPio, lcdSm, true);
+}
+
+// ---------------- PIO + DMA ----------------
+static inline void pioDrain() {
+  while (!pio_sm_is_tx_fifo_empty(lcdPio, lcdSm)) {}
+  uint32_t us = (uint32_t)(32.0f / sclkHz() * 1e6f) + 3;
+  busy_wait_us_32(us);
+}
+
+static void lcdSetWindow(int x0, int y0, int x1, int y1) {
+  uint8_t d[4];
+  bbModeBegin();
+  lcdCmdBB(0x2A); d[0]=x0>>8; d[1]=x0; d[2]=x1>>8; d[3]=x1; lcdDataBB(d, 4);
+  lcdCmdBB(0x2B); d[0]=y0>>8; d[1]=y0; d[2]=y1>>8; d[3]=y1; lcdDataBB(d, 4);
+  lcdCmdBB(0x2C);
+  bbModeEnd();
+}
+
+static void dmaStart(const void* src, uint32_t words) {
+  while (dma_channel_is_busy(dmaTx)) {}
+  dma_channel_set_read_addr(dmaTx, src, false);
+  dma_channel_set_trans_count(dmaTx, words, true);
+}
+
+static void lcdPushFb() {
+  lcdSetWindow(0, 0, LCD_W - 1, LCD_H - 1);
+  gpio_put(PIN_DC, 1);
+  gpio_put(PIN_CS, 0);
+  dmaStart(fb, sizeof(fb) / 4);
+  dma_channel_wait_for_finish_blocking(dmaTx);
+  pioDrain();
+  gpio_put(PIN_CS, 1);
+}
+
+static void pioBegin() {
+  lcdPio = pio0;
+  lcdSm = (int)pio_claim_unused_sm(lcdPio, true);
+  lcdOff = pio_add_program(lcdPio, &lcd_spi_program);
+  pio_sm_config c = lcd_spi_program_get_default_config(lcdOff);
+  sm_config_set_sideset_pins(&c, PIN_SCK);
+  sm_config_set_out_pins(&c, PIN_MOSI, 1);
+  sm_config_set_out_shift(&c, false, true, 32);
+  sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+  sm_config_set_clkdiv(&c, lcdClkDiv);
+  pio_gpio_init(lcdPio, PIN_SCK);
+  pio_gpio_init(lcdPio, PIN_MOSI);
+  pio_sm_set_consecutive_pindirs(lcdPio, lcdSm, PIN_SCK, 1, true);
+  pio_sm_set_consecutive_pindirs(lcdPio, lcdSm, PIN_MOSI, 1, true);
+  pio_sm_init(lcdPio, lcdSm, lcdOff, &c);
+  pio_sm_set_enabled(lcdPio, lcdSm, true);
+
+  dmaTx = dma_claim_unused_channel(true);
+  dma_channel_config dc = dma_channel_get_default_config(dmaTx);
+  channel_config_set_transfer_data_size(&dc, DMA_SIZE_32);
+  channel_config_set_dreq(&dc, pio_get_dreq(lcdPio, lcdSm, true));
+  channel_config_set_read_increment(&dc, true);
+  channel_config_set_write_increment(&dc, false);
+  dma_channel_configure(dmaTx, &dc, &lcdPio->txf[lcdSm], NULL, 0, false);
+}
+
+static void lcdInit() {
+  gpio_set_function(PIN_SCK, GPIO_FUNC_SIO);
+  gpio_set_function(PIN_MOSI, GPIO_FUNC_SIO);
+  gpio_set_dir(PIN_SCK, OUTPUT);
+  gpio_set_dir(PIN_MOSI, OUTPUT);
+  gpio_put(PIN_SCK, 0);
+  gpio_put(PIN_MOSI, 0);
+
+  gpio_put(PIN_RST, 0); delay(30); gpio_put(PIN_RST, 1); delay(150);
+  lcdCmdBB(0x01); delay(150);
+  lcdCmdBB(0x11); delay(120);
+  uint8_t d[1];
+  d[0] = 0x55; lcdCmdDataBB(0x3A, d, 1);
+  d[0] = lcdMadctl; lcdCmdDataBB(0x36, d, 1);
+  const uint8_t b2[5] = {0x0C,0x0C,0x00,0x33,0x33}; lcdCmdDataBB(0xB2, b2, 5);
+  d[0]=0x35; lcdCmdDataBB(0xB7, d, 1);
+  d[0]=0x19; lcdCmdDataBB(0xBB, d, 1);
+  d[0]=0x2C; lcdCmdDataBB(0xC0, d, 1);
+  d[0]=0x01; lcdCmdDataBB(0xC2, d, 1);
+  d[0]=0x12; lcdCmdDataBB(0xC3, d, 1);
+  d[0]=0x20; lcdCmdDataBB(0xC4, d, 1);
+  d[0]=0x0F; lcdCmdDataBB(0xC6, d, 1);
+  const uint8_t dd[2] = {0xA4,0xA1}; lcdCmdDataBB(0xD0, dd, 2);
+  lcdCmdBB(0x21);
+  const uint8_t e0[14] = {0xD0,0x04,0x0D,0x11,0x13,0x2B,0x3F,0x54,0x4C,0x18,0x0D,0x0B,0x1F,0x23};
+  lcdCmdDataBB(0xE0, e0, 14);
+  const uint8_t e1[14] = {0xD0,0x04,0x0C,0x11,0x13,0x2C,0x3F,0x44,0x51,0x2F,0x1F,0x1F,0x20,0x23};
+  lcdCmdDataBB(0xE1, e1, 14);
+  lcdCmdBB(0x13); delay(10);
+  lcdCmdBB(0x29); delay(100);
+  gpio_put(PIN_CS, 1);
+}
+
+// ---------------- drawing ----------------
+static inline void putPix(int i, uint16_t c) {
+  if (i >= 0 && i < LCD_W * LCD_H) fb[i ^ 1] = c;
+}
+
+void displayInit() {
+  gpio_init(PIN_CS);  gpio_set_dir(PIN_CS, OUTPUT);  gpio_put(PIN_CS, 1);
+  gpio_init(PIN_DC);  gpio_set_dir(PIN_DC, OUTPUT);  gpio_put(PIN_DC, 1);
+  gpio_init(PIN_RST); gpio_set_dir(PIN_RST, OUTPUT); gpio_put(PIN_RST, 1);
+  gpio_init(PIN_BL);  gpio_set_dir(PIN_BL, OUTPUT);  gpio_put(PIN_BL, 1);
+
+  lcdInit();
+  pioBegin();
+  displayClear(0);
+  lcdPushFb();
+}
+
+void displayClear(uint16_t color) {
+  for (int i = 0; i < LCD_W * LCD_H; i++) fb[i] = color;
+}
+
+void displayFillRect(int x, int y, int w, int h, uint16_t color) {
+  if (x < 0) { w += x; x = 0; }
+  if (y < 0) { h += y; y = 0; }
+  if (x + w > LCD_W) w = LCD_W - x;
+  if (y + h > LCD_H) h = LCD_H - y;
+  for (int yy = y; yy < y + h; yy++)
+    for (int xx = x; xx < x + w; xx++)
+      putPix(yy * LCD_W + xx, color);
+}
+
+void displayDrawRect(int x, int y, int w, int h, uint16_t color, int thickness) {
+  for (int t = 0; t < thickness; t++) {
+    displayFillRect(x + t, y + t, w - 2 * t, 1, color);
+    displayFillRect(x + t, y + h - 1 - t, w - 2 * t, 1, color);
+    displayFillRect(x + t, y + t, 1, h - 2 * t, color);
+    displayFillRect(x + w - 1 - t, y + t, 1, h - 2 * t, color);
+  }
+}
+
+void displayText(int x, int y, const char* text, uint16_t color, int scale) {
+  if (scale < 1) scale = 1;
+  for (; *text; text++) {
+    char ch = *text;
+    if (ch < 32 || ch > 90) ch = 32;
+    const uint8_t* g = font5x7[ch - 32];
+    for (int cx = 0; cx < FONT_W; cx++) {
+      uint8_t bits = g[cx];
+      for (int cy = 0; cy < FONT_H; cy++) {
+        if ((bits >> cy) & 1) {
+          for (int sy = 0; sy < scale; sy++)
+            for (int sx = 0; sx < scale; sx++)
+              putPix((y + cy * scale + sy) * LCD_W + (x + cx * scale + sx), color);
+        }
+      }
+    }
+    x += (FONT_W + 1) * scale;
+  }
+}
+
+void displayFlush() {
+  lcdPushFb();
+}

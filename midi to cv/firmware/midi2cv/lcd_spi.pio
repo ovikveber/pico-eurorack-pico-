@@ -1,0 +1,11 @@
+.program lcd_spi
+.side_set 1
+
+; 简易 SPI master (CPOL=0, CPHA=0, MSB-first) —— 2 周期/bit
+;   - MOSI = out pin  (out pins, 1)
+;   - SCK  = sideset pin (0=低, 1=高), 数据在 SCK 上升沿被 ST7789 锁存
+; 配合 autopull / shift-left / 32bit: 一个 FIFO 字出 32 bit。
+; 注意: RP2040 小端 + shift-left => 每 4 字节组会反序, 故固件里像素按 i^1 存放。
+; 2 周期/bit => SCLK = clk_sys/(2*clkdiv)（可远超 62.5，靠 clkdiv 调）
+    out pins, 1  side 0
+    nop          side 1

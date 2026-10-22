@@ -6,16 +6,19 @@
 RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 输出，使用内部
 2.5V 基准（0-5V）；8 路 Gate 经过缓冲，跟随每个声部的音符堆栈。
 
-> **状态：开发中。** PCB 还没到，尚未上板验证；屏幕显示内容和编码器功能分配还没定。
+> **状态：开发中。** PCB 已于 2026-10-22 到货；左半 4 组 CV/Gate 已焊并验证，
+> ST7789 屏幕 + 编码器通道设置 UI 已完成。当前固件：
+> `firmware/midi2cv_20261022_ui.uf2`。右半 5–8 组、私有总线和校准仍待做。
 
 ## 功能
 
 - 8 个声部，每个声部独立 MIDI 通道（1..16，保存在 EEPROM）
-- 1V/oct CV 输出，可选 1/2/5/8 V/oct
-- Gate 极性可配置
-- EC11 编码器菜单：短按进入/下一项，长按退出并保存
+- 1V/oct CV 输出（V/oct 和 Gate 极性目前固定为 1V/oct、正极性）
+- ST7789 240×240 屏幕：列出 V1..V8 和当前通道
+- EC11 编码器：旋转选行（蓝框），按下进入编辑（橙框），旋转改通道，再按退出并保存
+- 编码器使用 GPIO 中断，屏幕刷新期间不会漏步
 - USB 描述符固定，避免 Windows 和 FL Studio 累积幽灵设备
-- ST7789 OLED 和私有数字总线已预留，尚未实现
+- 私有数字总线（GP14）已预留，尚未实现
 
 ## 硬件
 
@@ -47,11 +50,11 @@ DAC 通道顺序和插座顺序不是一一对应的（PCB 走线原因），以
 
 ## 编译
 
-Arduino IDE 2.x + Earle Philhower RP2040 核心，板子选 **Raspberry Pi Pico**，
-USB Stack 选 **TinyUSB**：
+Arduino IDE 2.x + Earle Philhower RP2040 核心。本板是 16MB flash 的 RP2040，
+编译用 Generic RP2040 + boot2 /4 + TinyUSB：
 
 ```
-rp2040:rp2040:rpipico:usbstack=tinyusb
+rp2040:rp2040:generic:flash=16777216_0,boot2=boot2_w25q128jvxq_4_padded_checksum,freq=125,usbstack=tinyusb
 ```
 
 依赖库：Adafruit TinyUSB、EEPROM（RP2040 核心自带）。
@@ -59,12 +62,19 @@ rp2040:rp2040:rpipico:usbstack=tinyusb
 ## 校准
 
 `NOTE0`（对应 0V 的 MIDI 音符）和 `CV_FULLSCALE_V` 是常量，DAC8568 内部基准准确，
-一般不需要校准。V/oct、MIDI 通道和 Gate 极性在编码器菜单里设置。
+一般不需要校准。MIDI 通道在屏幕/编码器 UI 里设置；V/oct 和 Gate 极性暂时固定。
 
 ## 文件
 
 ```
-firmware/midi2cv/midi2cv.ino   固件
+firmware/midi2cv/midi2cv.ino   主固件
+firmware/midi2cv/Display.cpp    ST7789 PIO+DMA 驱动
+firmware/midi2cv/Display.h
+firmware/midi2cv/font5x7.h      5x7 字库
+firmware/screen_test/           屏幕/编码器/超频测试 sketch
+firmware/pin_scan/              GPIO 扫描排查工具
+firmware/midi2cv_20261022_ui.uf2     当前固件
+firmware/screen_test_20261022_encoder.uf2  屏幕测试固件
 hardware/                      BOM、Gerber、板子照片
 docs/wiring-table.txt          引脚和接口表
 docs/project-log.md            开发日志
@@ -85,17 +95,21 @@ An RP2040 USB-MIDI to 8x CV/Gate converter. A single DAC8568 provides eight 16-b
 from its internal 2.5 V reference (0-5 V); eight buffered gate outputs follow the note stack
 of each voice.
 
-> **Status: in development.** The PCB has not arrived yet, so nothing has been verified on
-> hardware; the display contents and encoder function assignment are not decided.
+> **Status: in development.** The PCB arrived on 2026-10-22; the left 4 CV/Gate groups are
+> soldered and verified, and the ST7789 + encoder channel UI is implemented. Current
+> firmware: `firmware/midi2cv_20261022_ui.uf2`. Groups 5–8, the private bus and
+> calibration are still pending.
 
 ## Features
 
 - 8 voices, each with its own MIDI channel (1..16, stored in EEPROM)
-- 1V/oct CV output, selectable 1/2/5/8 V/oct
-- Configurable gate polarity
-- EC11 encoder menu: short press = enter / next item, long press = exit and save
+- 1V/oct CV output (V/oct and gate polarity are fixed at 1V/oct, active-high for now)
+- ST7789 240x240 UI listing V1..V8 and their MIDI channels
+- EC11 encoder: rotate to select a row (blue box), press to edit (orange box), rotate to
+  change the channel, press again to exit and save
+- Encoder runs on GPIO interrupts, so screen updates do not drop steps
 - Fixed USB descriptors so Windows and FL Studio do not accumulate ghost devices
-- ST7789 OLED and the private digital bus are reserved but not implemented yet
+- Private digital bus (GP14) is reserved but not implemented yet
 
 ## Hardware
 
@@ -128,11 +142,11 @@ the firmware is the reference:
 
 ## Build
 
-Arduino IDE 2.x with the Earle Philhower RP2040 core, board **Raspberry Pi Pico**, USB
-stack **TinyUSB**:
+Arduino IDE 2.x with the Earle Philhower RP2040 core. This board has 16 MB flash, so build
+for Generic RP2040 with boot2 /4 and TinyUSB:
 
 ```
-rp2040:rp2040:rpipico:usbstack=tinyusb
+rp2040:rp2040:generic:flash=16777216_0,boot2=boot2_w25q128jvxq_4_padded_checksum,freq=125,usbstack=tinyusb
 ```
 
 Libraries: Adafruit TinyUSB, EEPROM (bundled with the RP2040 core).
@@ -140,13 +154,20 @@ Libraries: Adafruit TinyUSB, EEPROM (bundled with the RP2040 core).
 ## Calibration
 
 `NOTE0` (the MIDI note that maps to 0 V) and `CV_FULLSCALE_V` are constants because the
-DAC8568 internal reference is accurate. V/oct, MIDI channels and gate polarity are set
-from the encoder menu.
+DAC8568 internal reference is accurate. MIDI channels are set from the screen/encoder UI;
+V/oct and gate polarity are fixed for now.
 
 ## Files
 
 ```
-firmware/midi2cv/midi2cv.ino   firmware
+firmware/midi2cv/midi2cv.ino   main firmware
+firmware/midi2cv/Display.cpp   ST7789 PIO+DMA driver
+firmware/midi2cv/Display.h
+firmware/midi2cv/font5x7.h     5x7 font
+firmware/screen_test/          screen/encoder/overclock test sketch
+firmware/pin_scan/             GPIO scan bring-up tool
+firmware/midi2cv_20261022_ui.uf2           current firmware
+firmware/screen_test_20261022_encoder.uf2  screen test firmware
 hardware/                      BOM, Gerber archive, board photos
 docs/wiring-table.txt          pin and connector table
 docs/project-log.md            development log

@@ -20,6 +20,9 @@
 //   addr: A..H = 0..7, All = 0xF
 //   Power-on init: reset(cmd7) -> internal reference ON(cmd8, byte4=1).
 //
+// Bring-up mode: force MIDI ch1..8, disable encoder config, run a CV/gate self-test.
+#define BRINGUP 0
+
 // * Output mapping (group = one voice = 1 CV line + 1 Gate line; group number follows the physical jack pairs):
 //   V1 CV=DAC B(1) Gate=GP22 | V2 CV=DAC D(3) Gate=GP21 | V3 CV=DAC F(5) Gate=GP20 | V4 CV=DAC H(7) Gate=GP19
 //   V5 CV=DAC A(0) Gate=GP15 | V6 CV=DAC C(2) Gate=GP16 | V7 CV=DAC E(4) Gate=GP17 | V8 CV=DAC G(6) Gate=GP18
@@ -29,6 +32,7 @@
 #include <Arduino.h>
 #include <Adafruit_TinyUSB.h>
 #include <EEPROM.h>
+#include "Display.h"
 
 Adafruit_USBD_MIDI usb_midi;
 
@@ -50,11 +54,7 @@ static const uint8_t dacCh[8]   = {  1,  3,  5,  7,  0,  2,  4,  6 };
 #define NVOICE         8
 #define NOTE0          24        // MIDI note that maps to 0V (C1)
 #define CV_FULLSCALE_V 5.0f      // internal 2.5V reference x2 = 5.0V (exact, no calibration needed)
-#define MENU_ITEMS     10        // 8 channel items + V/oct + Gate polarity
 #define ENC_TRANS_PER_STEP 2     // encoder transitions per detent (15 pulses/30 detents=2; 20 pulses/20 detents=4)
-
-#define MODE_RUN   0
-#define MODE_CFG   1
 
 // ---------------- AD5668/DAC8568 ----------------
 static void dacBytes(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4) {
@@ -82,8 +82,6 @@ static void dacInit() {
 }
 
 // ---------------- State ----------------
-static uint8_t mode      = MODE_RUN;
-static uint8_t uiItem    = 0;                          // current config item 0..9
 static uint8_t chan[NVOICE]   = { 1, 2, 3, 4, 5, 6, 7, 8 };  // MIDI channel per voice
 static uint8_t voctN     = 1;                          // 1/2/5/8 V/oct
 static uint8_t gateInv   = 0;                          // 0=normal (high when note on) 1=inverted
@@ -98,17 +96,23 @@ struct Cfg { uint8_t magic; uint8_t ch[NVOICE]; uint8_t voct; uint8_t ginv; };
 static bool     cfgDirty = false;
 static uint32_t cfgMs = 0;
 static void cfgLoad() {
+#if BRINGUP
+  for (int v = 0; v < NVOICE; v++) chan[v] = v + 1;
+  voctN = 1;
+  gateInv = 0;
+  return;
+#endif
   Cfg c; EEPROM.get(0, c);
-  if (c.magic != 0x5A) {
+  if (c.magic != 0x5B) {
     for (int v = 0; v < NVOICE; v++) c.ch[v] = v + 1;
-    c.voct = 1; c.ginv = 0; c.magic = 0x5A;
+    c.voct = 1; c.ginv = 0; c.magic = 0x5B;
   }
   for (int v = 0; v < NVOICE; v++) chan[v] = (c.ch[v] >= 1 && c.ch[v] <= 16) ? c.ch[v] : (v + 1);
   voctN   = (c.voct == 1 || c.voct == 2 || c.voct == 5 || c.voct == 8) ? c.voct : 1;
   gateInv = c.ginv ? 1 : 0;
 }
 static void cfgSave() {
-  Cfg c; c.magic = 0x5A;
+  Cfg c; c.magic = 0x5B;
   for (int v = 0; v < NVOICE; v++) c.ch[v] = chan[v];
   c.voct = voctN; c.ginv = gateInv;
   EEPROM.put(0, c); EEPROM.commit();
@@ -150,6 +154,13 @@ static void midiTask() {
     uint8_t status = pkt[1];
     if (status < 0x80) continue;
     uint8_t type = status & 0xF0, midiCh = (status & 0x0F) + 1;
+#if BRINGUP
+    if (Serial.availableForWrite() >= 48) {
+      Serial.print("MIDI st="); Serial.print(status, HEX);
+      Serial.print(" d1="); Serial.print(pkt[2]);
+      Serial.print(" d2="); Serial.println(pkt[3]);
+    }
+#endif
     for (int v = 0; v < NVOICE; v++) {
       if (chan[v] != midiCh) continue;
       if (type == 0x90 && pkt[3] > 0) midiNoteOn(v, pkt[2]);
@@ -158,92 +169,109 @@ static void midiTask() {
   }
 }
 
-// ---------------- Encoder ----------------
-static int8_t encStep() {                        // rotation -> -1/+1
+// ---------------- Encoder (interrupt driven) ----------------
+static const int8_t ENC_TBL[16] = {
+   0, -1,  1,  0,
+   1,  0,  0, -1,
+  -1,  0,  0,  1,
+   0,  1, -1,  0
+};
+static volatile int16_t encDelta = 0;
+
+static void encISR() {
   static int8_t accum = 0;
-  static const int8_t TBL[16] = {
-     0, -1,  1,  0,
-     1,  0,  0, -1,
-    -1,  0,  0,  1,
-     0,  1, -1,  0
-  };
   static uint8_t lastAB = 0;
   uint8_t ab = (uint8_t)((digitalRead(ENC_A) << 1) | digitalRead(ENC_B));
   if (ab != lastAB) {
-    accum += TBL[(lastAB << 2) | ab];
+    accum += ENC_TBL[(lastAB << 2) | ab];
     lastAB = ab;
-    if (accum >= ENC_TRANS_PER_STEP)  { accum = 0; return 1; }
-    if (accum <= -ENC_TRANS_PER_STEP) { accum = 0; return -1; }
+    if (accum >= ENC_TRANS_PER_STEP)  { accum = 0; encDelta++; }
+    if (accum <= -ENC_TRANS_PER_STEP) { accum = 0; encDelta--; }
   }
-  return 0;
 }
-static void menuAdjust(int dir) {
-  if (dir == 0) return;
-  if (uiItem < NVOICE) {                              // channels 1..16
-    int c = chan[uiItem] + dir;
-    if (c < 1) c = 16; if (c > 16) c = 1;
-    chan[uiItem] = (uint8_t)c;
-  } else if (uiItem == NVOICE) {                      // V/oct 1/2/5/8
-    static const uint8_t V[4] = { 1, 2, 5, 8 };
-    int i = 0; while (V[i] != voctN && i < 3) i++;
-    i = (i + dir + 4) % 4;
-    voctN = V[i];
-  } else {                                            // Gate polarity
-    gateInv ^= 1;
+
+// ---------------- UI ----------------
+static bool uiEdit = false;
+static int  uiSel  = 0;
+static bool uiDirty = true;
+
+static void uiHandleRotation(int16_t delta) {
+  if (delta == 0) return;
+  if (!uiEdit) {
+    uiSel = (uiSel + delta) % NVOICE;
+    if (uiSel < 0) uiSel += NVOICE;
+  } else {
+    int c = (int)chan[uiSel] + delta;
+    while (c < 1) c += 16;
+    while (c > 16) c -= 16;
+    chan[uiSel] = (uint8_t)c;
+    cfgDirty = true; cfgMs = millis();
   }
-  cfgDirty = true; cfgMs = millis();
+  uiDirty = true;
 }
-static void enterConfig() {
-  for (int v = 0; v < NVOICE; v++) { noteCnt[v] = 0; gate[v] = false; }   // clear notes to avoid stuck gates
-  mode = MODE_CFG; uiItem = 0; gDirty = true;
+
+static void uiHandlePress() {
+  if (!uiEdit) {
+    uiEdit = true;
+  } else {
+    uiEdit = false;
+    cfgSave();
+    cfgDirty = false;
+  }
+  uiDirty = true;
 }
-static void exitConfig() {
-  mode = MODE_RUN; cfgSave(); cfgDirty = false; gDirty = true;
+
+static void uiDraw() {
+  const uint16_t bg     = rgb565(6, 8, 12);
+  const uint16_t fg     = rgb565(235, 238, 242);
+  const uint16_t dim    = rgb565(120, 128, 140);
+  const uint16_t accent = rgb565(255, 164, 58);
+  const uint16_t selCol = rgb565(70, 180, 255);
+
+  displayClear(bg);
+  char buf[20];
+  displayText(6, 4, "MIDI TO CV", accent, 1);
+  displayText(180, 4, uiEdit ? "EDIT" : "SELECT", uiEdit ? accent : dim, 1);
+  displayFillRect(0, 15, 240, 1, rgb565(40, 46, 56));
+
+  for (int i = 0; i < NVOICE; i++) {
+    int y = 18 + i * 27;
+    bool selected = (i == uiSel);
+    if (selected) {
+      if (uiEdit) displayFillRect(4, y - 1, 232, 25, rgb565(22, 36, 54));
+      displayDrawRect(3, y - 1, 234, 25, uiEdit ? accent : selCol, 2);
+    }
+    snprintf(buf, sizeof(buf), "V%d", i + 1);
+    displayText(12, y + 7, buf, selected ? fg : dim, 1);
+    snprintf(buf, sizeof(buf), "CH %d", chan[i]);
+    displayText(60, y + 5, buf, selected ? fg : rgb565(180, 186, 196), 2);
+    int barW = (int)chan[i] * 6;
+    displayFillRect(232 - barW, y + 9, barW, 6,
+                    selected ? (uiEdit ? accent : selCol) : rgb565(50, 58, 72));
+  }
+  displayFlush();
 }
-static void encTask() {
+
+static void uiProcess() {
+  int16_t delta;
+  noInterrupts();
+  delta = encDelta;
+  encDelta = 0;
+  interrupts();
+  if (delta) uiHandleRotation(delta);
+
   static uint8_t sLast = 0, sStable = 0;
-  static uint32_t tChange = 0, tPress = 0;
-  static bool    longDone = false;
-  uint32_t now = millis();
-
-  int8_t step = encStep();
-  if (step) menuAdjust(step);
-
-  uint8_t s = (digitalRead(ENC_SW) == LOW) ? 1 : 0;   // pressed=1
-  if (s != sLast) { sLast = s; tChange = now; }
-  if ((now - tChange) >= 15 && s != sStable) {
+  static uint32_t tChange = 0;
+  uint8_t s = (digitalRead(ENC_SW) == LOW) ? 1 : 0;
+  if (s != sLast) { sLast = s; tChange = millis(); }
+  if (millis() - tChange >= 15 && s != sStable) {
     sStable = s;
-    if (s == 1) { tPress = now; longDone = false; }
-    else {                                            // released
-      if (!longDone) {                                // short press
-        if (mode == MODE_RUN) enterConfig();
-        else uiItem = (uint8_t)((uiItem + 1) % MENU_ITEMS);
-        gDirty = true;
-      }
-      longDone = false;
-    }
+    if (s == 0) uiHandlePress();
   }
-  if (sStable == 1 && !longDone && (now - tPress) >= 800) {   // long press: exit and save
-    longDone = true;
-    if (mode == MODE_CFG) exitConfig();
-  }
-}
 
-// ---------------- UI (TODO: ST7789 OLED) ----------------
-// The new board has no LED; the config display will be implemented once the OLED is connected.
-// For now the serial port is used as temporary feedback.
-static void uiTask() {
-  static uint8_t lastMode = 0xFF, lastItem = 0xFF;
-  if (mode != lastMode || uiItem != lastItem) {
-    lastMode = mode; lastItem = uiItem;
-    if (mode == MODE_CFG) {
-      Serial.print(F("[CFG] item=")); Serial.print(uiItem);
-      if (uiItem < NVOICE) { Serial.print(F(" ch=")); Serial.println(chan[uiItem]); }
-      else if (uiItem == NVOICE) { Serial.print(F(" voct=")); Serial.println(voctN); }
-      else { Serial.print(F(" gateInv=")); Serial.println(gateInv); }
-    } else {
-      Serial.println(F("[RUN]"));
-    }
+  if (uiDirty) {
+    uiDirty = false;
+    uiDraw();
   }
 }
 
@@ -261,19 +289,39 @@ void setup() {
   EEPROM.begin(sizeof(Cfg)); cfgLoad();
 
   pinMode(ENC_A, INPUT_PULLUP); pinMode(ENC_B, INPUT_PULLUP); pinMode(ENC_SW, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(ENC_A), encISR, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ENC_B), encISR, CHANGE);
   for (int v = 0; v < NVOICE; v++) { pinMode(gatePin[v], OUTPUT); digitalWrite(gatePin[v], LOW); }
 
   dacInit();
   updateOutputs();
+  displayInit();
+
+#if BRINGUP
+  // Groups 1..4 -> 1V, 2V, 3V, 4V and all four gates high for 8 s.
+  for (int v = 0; v < 4; v++) {
+    curNote[v] = NOTE0 + 12 * (v + 1);
+    gate[v] = true;
+  }
+  updateOutputs();
+  if (Serial.availableForWrite() >= 100) {
+    Serial.print("SELFTEST V1=1V V2=2V V3=3V V4=4V gates HIGH 8s; ch=");
+    for (int v = 0; v < NVOICE; v++) { Serial.print(chan[v]); Serial.print(' '); }
+    Serial.println();
+  }
+  delay(8000);
+  for (int v = 0; v < 4; v++) {
+    curNote[v] = NOTE0;
+    gate[v] = false;
+  }
+  updateOutputs();
+#endif
 }
 
 void loop() {
   midiTask();
 
-  static uint32_t tPoll = 0;
-  if (millis() - tPoll >= 1) { tPoll = millis(); encTask(); }
-
   if (gDirty) { gDirty = false; updateOutputs(); }
-  uiTask();
+  uiProcess();
   if (cfgDirty && millis() - cfgMs > 800) { cfgDirty = false; cfgSave(); }
 }

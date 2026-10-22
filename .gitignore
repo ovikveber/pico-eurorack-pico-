@@ -27,6 +27,7 @@ Thumbs.db
 desktop.ini
 
 # Local secrets and backups
+_backup/
 .env
 .env.*
 *.key
