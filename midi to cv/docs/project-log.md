@@ -242,6 +242,12 @@
   - RANGE 显示实际八度，保留 2 位小数；EEPROM 仍用 milli-octave 存精度
   - FINE 按钮行放在 RANGE 上面：OFF=0.5 八度步进，ON=0.01 八度微调
   - 光晕半径缩到小球约 1.35×（碰撞最大约 1.6×），只保留自身发光/闪白
+- **2026-10-22 v15（布局/长跑性能）**：
+  - GATE/TRIG 用固定 3 字符宽度（ON 补空格），开关不再推挤整行
+  - Random 底部左侧新增当前 SCALE；右侧 OUT 单独一行，GATE/TRIG 一行
+  - 修复长跑变卡：去掉 updateWaves 每帧 vector 分配，改用固定数组；
+    wave hitUids 改固定数组；enforceTypePresence 候选改固定数组
+  - 绘制只取最新 10 个场地光效和 16 个波，降低后期渲染负担
 
 ## 6. 当前状态（2026-10-22）
 - 当前固件：`firmware\midi2cv_random_20261022.uf2`

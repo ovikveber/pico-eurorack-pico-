@@ -968,12 +968,13 @@ void World::enforceTypePresence()
     for (const auto& b : balls)
         counts[kindIndex (b.prop.kind)]++;
 
-    std::vector<int> missing;
+    int missing[3];
+    int missingCount = 0;
     for (int i = 0; i < 3; ++i)
         if (counts[(size_t) i] == 0)
-            missing.push_back (i);
+            missing[missingCount++] = i;
 
-    if (missing.empty())
+    if (missingCount == 0)
         return;
 
     const auto most = (int) std::distance (counts.begin(),
@@ -982,20 +983,21 @@ void World::enforceTypePresence()
         return;
 
     const auto ratios = targetRatios();
-    const auto target = *std::max_element (missing.begin(), missing.end(),
-                                           [&ratios] (int a, int b) {
-                                               return ratios[(size_t) a] < ratios[(size_t) b];
-                                           });
+    int target = missing[0];
+    for (int i = 1; i < missingCount; ++i)
+        if (ratios[(size_t) missing[i]] > ratios[(size_t) target])
+            target = missing[i];
 
     const auto amount = jmax (1, jmin (2, (int) std::round (ratios[(size_t) target] * (float) n * 0.4f)));
 
-    std::vector<size_t> candidates;
-    for (size_t i = 0; i < balls.size(); ++i)
+    size_t candidates[32];
+    int candidateCount = 0;
+    for (size_t i = 0; i < balls.size() && candidateCount < 32; ++i)
         if (kindIndex (balls[i].prop.kind) == most)
-            candidates.push_back (i);
+            candidates[candidateCount++] = i;
 
-    std::shuffle (candidates.begin(), candidates.end(), rng);
-    for (int k = 0; k < amount && k < (int) candidates.size(); ++k)
+    std::shuffle (candidates, candidates + candidateCount, rng);
+    for (int k = 0; k < amount && k < candidateCount; ++k)
     {
         auto& b = balls[candidates[(size_t) k]];
         b.prop = randomProp (static_cast<PropKind> (target));
@@ -1059,7 +1061,8 @@ void World::addSparks (V2 pos, const Prop& prop, int count, float speed)
 void World::updateWaves (float dt)
 {
     struct PendingWave { V2 pos; Prop prop; float amp; int generation; };
-    std::vector<PendingWave> pendingWaves;
+    std::array<PendingWave, 32> pendingWaves {};
+    int pendingCount = 0;
 
     for (auto& w : waves)
     {
@@ -1070,13 +1073,17 @@ void World::updateWaves (float dt)
 
         for (auto& b : balls)
         {
-            if (std::find (w.hitUids.begin(), w.hitUids.end(), b.uid) != w.hitUids.end())
+            bool seen = false;
+            for (int k = 0; k < w.hitCount; ++k)
+                if (w.hitUids[(size_t) k] == b.uid) { seen = true; break; }
+            if (seen)
                 continue;
 
             const auto d = b.pos.getDistanceFrom (w.pos);
             if (std::abs (d - w.radius) < 11.0f + b.radius)
             {
-                w.hitUids.push_back (b.uid);
+                if (w.hitCount < (int) w.hitUids.size())
+                    w.hitUids[(size_t) w.hitCount++] = b.uid;
                 const auto idx = kindIndex (w.prop.kind);
                 b.waveAmp[(size_t) idx] = jmax (b.waveAmp[(size_t) idx], w.amp * 0.75f);
                 b.waveTimer[(size_t) idx] = 1.6f;
@@ -1085,25 +1092,28 @@ void World::updateWaves (float dt)
 
         if (! w.reflected && w.age > 0.1f && w.generation < 2)
         {
-            std::vector<const Segment*> hits;
+            const Segment* hits[24];
+            int hitCount = 0;
             for (const auto& s : segments)
             {
                 const auto d = s.mid.getDistanceFrom (w.pos);
-                if (std::abs (d - w.radius) < step + 3.0f)
-                    hits.push_back (&s);
+                if (std::abs (d - w.radius) < step + 3.0f && hitCount < 24)
+                    hits[hitCount++] = &s;
             }
 
-            if (! hits.empty())
+            if (hitCount > 0)
             {
                 w.reflected = true;
-                std::vector<float> chosen;
-                for (const auto* s : hits)
+                float chosen[8];
+                int chosenCount = 0;
+                for (int hi = 0; hi < hitCount; ++hi)
                 {
+                    const auto* s = hits[hi];
                     const auto ang = std::atan2 (s->mid.y - w.pos.y, s->mid.x - w.pos.x);
                     bool ok = true;
-                    for (auto c : chosen)
+                    for (int ci = 0; ci < chosenCount; ++ci)
                     {
-                        auto delta = std::abs (std::fmod (ang - c + pi,
+                        auto delta = std::abs (std::fmod (ang - chosen[ci] + pi,
                                                           twoPi) - pi);
                         if (delta <= 1.35f)
                         {
@@ -1113,19 +1123,22 @@ void World::updateWaves (float dt)
                     }
                     if (ok)
                     {
-                        chosen.push_back (ang);
-                        pendingWaves.push_back ({ s->mid, w.prop, w.amp * 0.52f, w.generation + 1 });
+                        if (chosenCount < 8)
+                            chosen[chosenCount++] = ang;
+                        if (pendingCount < (int) pendingWaves.size())
+                            pendingWaves[(size_t) pendingCount++] = { s->mid, w.prop, w.amp * 0.52f, w.generation + 1 };
                         addSparks (s->mid, w.prop, 3, 70.0f);
                     }
-                    if (chosen.size() >= 2)
+                    if (chosenCount >= 2)
                         break;
                 }
             }
         }
     }
 
-    for (const auto& pw : pendingWaves)
-        addWave (pw.pos, pw.prop, pw.amp, pw.generation);
+    for (int i = 0; i < pendingCount; ++i)
+        addWave (pendingWaves[(size_t) i].pos, pendingWaves[(size_t) i].prop,
+                 pendingWaves[(size_t) i].amp, pendingWaves[(size_t) i].generation);
 
     const auto maxRadius = jmin (300.0f, 380.0f * settings.waveRange);
     waves.erase (std::remove_if (waves.begin(), waves.end(),

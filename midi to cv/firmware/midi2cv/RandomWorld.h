@@ -212,7 +212,8 @@ private:
         int generation = 0;
         bool reflected = false;
         float age = 0.0f;
-        std::vector<int> hitUids;
+        std::array<int, 32> hitUids {};
+        int hitCount = 0;
     };
 
     struct Booster

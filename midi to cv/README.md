@@ -18,8 +18,8 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
 - ST7789 240×240 单列可滚动 UI：
   - MIDI 模式：V1–V8、GATE、V/OCT，共 10 行；通道行有蓝色通道条和 gate 指示灯
   - Clock 模式（IO24）：组1–4 八个插孔=C1–C8，组5–8 仍是 MIDI V5–V8
-  - RandomSynth 模式（IO23）：粒子场地占满 240×222；底部左侧只显示 KNOB 绑定，
-    右侧上一行 OUT 音名（含 cents 后缀），下一行 GATE/TRIG ON/OFF；
+  - RandomSynth 模式（IO23）：粒子场地占满 240×222；底部左侧显示 SCALE 和 KNOB 绑定，
+    右侧上一行 OUT 音名（含 cents 后缀），下一行 GATE/TRIG ON/OFF（固定宽度不跳动）；
     编码器默认调场地大小，按下进入设置页
 - EC11 编码器：旋转选行（1px 蓝框），按下进入编辑（橙框），再按退出并保存
 - Clock：PLAY 行在列表最顶上；BPM 20–300 + docB PwmClock 的 24 个分数分频
@@ -137,9 +137,9 @@ of each voice.
   - MIDI mode: V1–V8, GATE, V/OCT (10 rows); channel rows have a blue bar and gate LED
   - Clock mode (IO24): groups 1–4's eight jacks = C1–C8,
     groups 5–8 remain MIDI V5–V8
-  - RandomSynth mode (IO23): the field fills 240×222; bottom-left shows only the KNOB
-    binding, bottom-right has OUT note (with cents) on one line and GATE/TRIG ON/OFF
-    on the next; the encoder adjusts field size by default, press to open settings
+  - RandomSynth mode (IO23): the field fills 240×222; bottom-left shows SCALE and the
+    KNOB binding, bottom-right has OUT note (with cents) on one line and fixed-width
+    GATE/TRIG ON/OFF on the next; the encoder adjusts field size, press for settings
 - EC11 encoder: rotate to select a row (1px blue box), press to edit (orange box),
   press again to exit and save
 - Clock: the PLAY row is at the very top; BPM 20–300 + the 24 docB PwmClock ratios
@@ -156,6 +156,8 @@ of each voice.
 - The **FINE** button row sits above RANGE and switches between 0.5-octave steps
   (OFF) and 0.01-octave fine steps (ON)
 - The field is 222 px high and collision glow is a soft self-glow (no ring outline)
+- Random rendering avoids per-frame heap allocations; only the newest 10 field
+  glows and 16 waves are drawn, keeping long runs smooth
 - IO23 short press enters Random; if IO23 is missing/dead, **hold IO24 ~0.8 s** instead
 - Encoder runs on GPIO interrupts; LEDs update locally on change; MIDI mode has no clock timer
 - RP2040 at 420 MHz (1.3 V, PLL/clock-source verified; falls back to 125 MHz)

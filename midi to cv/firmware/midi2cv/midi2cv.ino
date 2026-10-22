@@ -1113,7 +1113,8 @@ static void rsRenderMain() {
   rsWorld.fillSnapshot(rsSnap);
   displayClear(bg);
 
-  for (int i = 0; i < rsSnap.fieldCount; i++) {
+  int fieldStart = rsSnap.fieldCount > 10 ? rsSnap.fieldCount - 10 : 0;
+  for (int i = fieldStart; i < rsSnap.fieldCount; i++) {
     const auto& f = rsSnap.fields[(size_t)i];
     uint16_t c = rsKindColor(f.kind);
     displayFillCircleAlpha((int)lroundf(f.pos.x), (int)lroundf(f.pos.y),
@@ -1121,7 +1122,8 @@ static void rsRenderMain() {
                            (uint8_t)constrain((int)(f.strength * 55.0f), 0, 90));
   }
 
-  for (int i = 0; i < rsSnap.waveCount; i++) {
+  int waveStart = rsSnap.waveCount > 16 ? rsSnap.waveCount - 16 : 0;
+  for (int i = waveStart; i < rsSnap.waveCount; i++) {
     const auto& w = rsSnap.waves[(size_t)i];
     uint16_t c = rsScaleColor(rsKindColor(w.kind), w.amp * 0.75f);
     displayDrawCircle((int)lroundf(w.pos.x), (int)lroundf(w.pos.y),
@@ -1181,7 +1183,9 @@ static void rsRenderMain() {
   displayFillRect(0, bottomY, 240, 240 - bottomY, rgb565(5, 7, 10));
   displayFillRect(0, bottomY, 240, 1, rgb565(38, 44, 54));
 
-  char l[40];
+  char l[48];
+  snprintf(l, sizeof(l), "SCALE %s", scaleName(rsScale));
+  displayText(2, bottomY + 1, l, dim, 1);
   snprintf(l, sizeof(l), "KNOB %s", RB_NAMES[rsBind]);
   displayText(2, bottomY + 9, l, accent, 1);
 
@@ -1197,9 +1201,9 @@ static void rsRenderMain() {
   rightText(bottomY + 1, l, accent);
 
   bool trigShow = rsTrigOn || (rsTrigSeenMs != 0 && millis() - rsTrigSeenMs < 120u);
-  char g[10], t[10];
-  snprintf(g, sizeof(g), "GATE %s", rsGateOn ? "ON" : "OFF");
-  snprintf(t, sizeof(t), "TRIG %s", trigShow ? "ON" : "OFF");
+  char g[12], t[12];
+  snprintf(g, sizeof(g), "GATE %-3s", rsGateOn ? "ON" : "OFF");
+  snprintf(t, sizeof(t), "TRIG %-3s", trigShow ? "ON" : "OFF");
   int gw = (int)strlen(g) * 6, tw = (int)strlen(t) * 6, gap = 6;
   int gx = 238 - gw - gap - tw;
   if (gx < 2) gx = 2;
