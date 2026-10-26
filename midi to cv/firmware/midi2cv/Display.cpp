@@ -1,4 +1,4 @@
-﻿#include <Arduino.h>
+#include <Arduino.h>
 #include <hardware/pio.h>
 #include <hardware/dma.h>
 #include <hardware/gpio.h>
@@ -6,6 +6,7 @@
 #include "lcd_spi.pio.h"
 #include "font5x7.h"
 #include "Display.h"
+#include <cmath>
 
 #define PIN_SCK   10
 #define PIN_MOSI  9
@@ -81,8 +82,35 @@ static void bbModeEnd() {
 }
 
 // ---------------- PIO + DMA ----------------
+static uint32_t flushStartUs = 0;
+
+static void pioRecover() {
+  pio_sm_set_enabled(lcdPio, lcdSm, false);
+  pio_sm_clear_fifos(lcdPio, lcdSm);
+  pio_sm_restart(lcdPio, lcdSm);
+  pio_sm_exec(lcdPio, lcdSm, pio_encode_jmp(lcdOff));
+  pio_sm_set_enabled(lcdPio, lcdSm, true);
+}
+
+static void dmaWaitBounded(uint32_t timeoutUs) {
+  uint32_t t0 = micros();
+  while (dma_channel_is_busy(dmaTx)) {
+    if ((uint32_t)(micros() - t0) > timeoutUs) {
+      dma_channel_abort(dmaTx);
+      pioRecover();
+      break;
+    }
+  }
+}
+
 static inline void pioDrain() {
-  while (!pio_sm_is_tx_fifo_empty(lcdPio, lcdSm)) {}
+  uint32_t t0 = micros();
+  while (!pio_sm_is_tx_fifo_empty(lcdPio, lcdSm)) {
+    if ((uint32_t)(micros() - t0) > 3000u) {
+      pioRecover();
+      break;
+    }
+  }
   uint32_t us = (uint32_t)(32.0f / sclkHz() * 1e6f) + 3;
   busy_wait_us_32(us);
 }
@@ -97,7 +125,7 @@ static void lcdSetWindow(int x0, int y0, int x1, int y1) {
 }
 
 static void dmaStart(const void* src, uint32_t words) {
-  while (dma_channel_is_busy(dmaTx)) {}
+  dmaWaitBounded(30000);
   dma_channel_set_read_addr(dmaTx, src, false);
   dma_channel_set_trans_count(dmaTx, words, true);
 }
@@ -107,7 +135,7 @@ static void lcdPushFb() {
   gpio_put(PIN_DC, 1);
   gpio_put(PIN_CS, 0);
   dmaStart(fb, sizeof(fb) / 4);
-  dma_channel_wait_for_finish_blocking(dmaTx);
+  dmaWaitBounded(30000);
   pioDrain();
   gpio_put(PIN_CS, 1);
 }
@@ -243,6 +271,9 @@ static inline uint16_t blend565(uint16_t dst, uint16_t src, uint8_t a) {
 }
 
 void displayDrawLine(int x0, int y0, int x1, int y1, uint16_t color, int thickness) {
+  if (!std::isfinite((float)x0) || !std::isfinite((float)y0) ||
+      !std::isfinite((float)x1) || !std::isfinite((float)y1)) return;
+  if (abs(x1 - x0) > 2000 || abs(y1 - y0) > 2000) return;
   if (thickness < 1) thickness = 1;
   int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
   int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
@@ -262,7 +293,8 @@ void displayDrawLine(int x0, int y0, int x1, int y1, uint16_t color, int thickne
 }
 
 void displayFillCircle(int cx, int cy, int r, uint16_t color) {
-  if (r <= 0) return;
+  if (r <= 0 || r > 400) return;
+  if (!std::isfinite((float)cx) || !std::isfinite((float)cy)) return;
   int r2 = r * r;
   for (int y = -r; y <= r; y++) {
     for (int x = -r; x <= r; x++) {
@@ -272,7 +304,8 @@ void displayFillCircle(int cx, int cy, int r, uint16_t color) {
 }
 
 void displayFillCircleAlpha(int cx, int cy, int r, uint16_t color, uint8_t alpha) {
-  if (r <= 0 || alpha == 0) return;
+  if (r <= 0 || r > 400 || alpha == 0) return;
+  if (!std::isfinite((float)cx) || !std::isfinite((float)cy)) return;
   int r2 = r * r;
   for (int y = -r; y <= r; y++) {
     int py = cy + y;
@@ -288,7 +321,8 @@ void displayFillCircleAlpha(int cx, int cy, int r, uint16_t color, uint8_t alpha
 }
 
 void displayDrawCircle(int cx, int cy, int r, uint16_t color, int thickness) {
-  if (r <= 0) return;
+  if (r <= 0 || r > 400) return;
+  if (!std::isfinite((float)cx) || !std::isfinite((float)cy)) return;
   for (int t = 0; t < thickness; t++) {
     int rr = r - t;
     if (rr <= 0) break;
@@ -309,8 +343,33 @@ void displayDrawCircle(int cx, int cy, int r, uint16_t color, int thickness) {
   }
 }
 
+void displayFlushBegin() {
+  lcdSetWindow(0, 0, LCD_W - 1, LCD_H - 1);
+  gpio_put(PIN_DC, 1);
+  gpio_put(PIN_CS, 0);
+  dmaStart(fb, sizeof(fb) / 4);
+  flushStartUs = micros();
+}
+
+bool displayFlushBusy() {
+  return dma_channel_is_busy(dmaTx) || (uint32_t)(micros() - flushStartUs) < 100u;
+}
+
+void displayFlushEnd() {
+  dmaWaitBounded(30000);
+  pioDrain();
+  gpio_put(PIN_CS, 1);
+}
+
+void displayFlushAbort() {
+  dma_channel_abort(dmaTx);
+  pioRecover();
+  gpio_put(PIN_CS, 1);
+}
+
 void displayFlush() {
-  lcdPushFb();
+  displayFlushBegin();
+  displayFlushEnd();
 }
 
 static uint16_t sqBuf[24 * 24] __attribute__((aligned(4)));
@@ -322,7 +381,7 @@ void displayFillSquare(int x, int y, int size, uint16_t color) {
   gpio_put(PIN_DC, 1);
   gpio_put(PIN_CS, 0);
   dmaStart(sqBuf, (uint32_t)(size * size * 2) / 4);
-  dma_channel_wait_for_finish_blocking(dmaTx);
+  dmaWaitBounded(30000);
   pioDrain();
   gpio_put(PIN_CS, 1);
   busy_wait_us_32(20);

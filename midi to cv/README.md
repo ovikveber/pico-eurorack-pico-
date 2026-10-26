@@ -8,34 +8,27 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
 
 > **状态：开发中。** PCB 已于 2026-10-22 到货；左半 4 组 CV/Gate 已焊并验证，
 > ST7789 屏幕 + 编码器通道设置 UI 已完成。当前固件：
-> `firmware/midi2cv_random_20261022.uf2`。CPU 420MHz（PLL 校验，失败回退 125MHz），
+> `firmware/midi2cv_20261025_v33_no_random.uf2`。CPU 420MHz（PLL 校验，失败回退 125MHz），
 > 屏幕 SCLK 52.5MHz。右半 5–8 组、私有总线和校准仍待做。
 
 ## 功能
 
 - 8 个声部，每个声部独立 MIDI 通道（1..16，保存在 EEPROM）
-- CV 支持 **1V / 2V / 5V per octave**；Gate 极性 **+ / -** 可设置
+- CV 固定 **1V/oct**；满量程可选 **1V / 2V / 5V**（对应 1/2/5 个八度，
+  同 Korg SQ-1 的 CV RANGE），超出量程封顶；Gate 极性 **+ / -** 可设置
 - ST7789 240×240 单列可滚动 UI：
   - MIDI 模式：V1–V8、GATE、V/OCT，共 10 行；通道行有蓝色通道条和 gate 指示灯
-  - Clock 模式（IO24）：组1–4 八个插孔=C1–C8，组5–8 仍是 MIDI V5–V8
-  - RandomSynth 模式（IO23）：粒子场地占满 240×222；底部左侧显示 SCALE 和 KNOB 绑定，
-    右侧上一行 OUT 音名（含 cents 后缀），下一行 GATE/TRIG ON/OFF（固定宽度不跳动）；
-    编码器默认调场地大小，按下进入设置页
+  - Clock 模式（IO24 短按）：组1–4 八个插孔=C1–C8，组5–8 仍是 MIDI V5–V8
+- 支持 CC#120（All Sound Off）/ CC#123（All Notes Off）按通道清音；
+  MIDI Stop 也会清空所有音符；在 UI 里改某路 MIDI 通道会**立即**清空该路音符，避免 Gate 卡住
 - EC11 编码器：旋转选行（1px 蓝框），按下进入编辑（橙框），再按退出并保存
 - Clock：PLAY 行在列表最顶上；BPM 20–300 + docB PwmClock 的 24 个分数分频
 - Clock 默认暂停；MIDI Start/Stop/Continue 也可控制；无 RUN/RESET 硬件输出
-- RandomSynth：12 球起，碰撞生成 V/OCT、GATE、TRIG、FX；设置里有球大小/速度、
-  波形、音高范围/音阶、PITCH/ADSR/FX 比例、加球、加速器、重置和 SHAPE
-- RandomSynth 输出：**G1 CV=V/OCT，G2 CV=FX SEND，G3 CV=PAN，G1 Gate=GATE，G2 Gate=TRIG**
-  （PAN 为 0–5V，中心 2.5V；每组只有 1 个 DAC CV + 1 个 Gate，所以 FX 放在 G2 CV）
-- RandomSynth 设置：V/OCT 量程 1/2/5、GATE/TRIG 极性、FX SEND 可调；
-  BIND 行可把任意参数绑定到主页面编码器（主页面只能绑一个）
-- RandomSynth 连续参数在 UI 上统一为 **0.00–1.00**（最大/最小效果不变）；
-  但 RANGE 显示实际八度并保留 **2 位小数**
-- **FINE** 按钮行在 RANGE 上面：OFF 时按 0.5 八度步进，ON 时按 0.01 八度微调
-- 场地高度 222px；小球碰撞为柔和自身发光/闪白，没有外圈线条
-- IO23 短按进入 Random；如果 IO23 未接/失效，**长按 IO24 约 0.8 秒**也可进入/退出 Random
-- 编码器使用 GPIO 中断；指示灯只在状态变化时局部刷新；MIDI 模式不注册 clock 定时器
+- 编码器使用 **GPIO 中断**（A/B CHANGE），中断只累计步数；一有变化就渲染下一帧；
+  整帧 DMA 推屏不等待、不阻塞，期间持续服务 MIDI/输出，画每一行之间也处理 MIDI；
+  指示灯只在实际画灯时记录状态，变化后补刷；MIDI 模式不注册 clock 定时器
+- **通道编辑是暂存的**：编辑时只改屏幕上的待选通道，旧通道继续工作；按一下退出编辑后
+  才真正切换并清空该路音符/Gate。编辑中切换 Clock 会先自动退出编辑再切换
 - RP2040 420MHz（1.3V，PLL/时钟源校验；失败回退 125MHz）
 - ST7789 SCLK 52.5MHz（整数分频，12mA + fast slew），整帧约 17.55ms
 - USB 描述符固定，避免 Windows 和 FL Studio 累积幽灵设备
@@ -46,7 +39,7 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
 | 信号 | 引脚 |
 | --- | --- |
 | DAC SCLK / DIN / SYNC | GP28 / GP27 / GP26 |
-| Gate V1..V8 | GP22 GP21 GP20 GP19 GP18 GP17 GP16 GP15 |
+| Gate V1..V8 | GP22 GP21 GP20 GP19 GP15 GP16 GP17 GP18 |
 | 编码器 A / B / SW | GP13 / GP12 / GP11 |
 | 数字总线 | GP14 |
 | OLED SCL / SDA / RST / DC / CS / BL | GP10 / GP9 / GP8 / GP7 / GP6 / GP5 |
@@ -69,20 +62,6 @@ DAC 通道顺序和插座顺序不是一一对应的（PCB 走线原因），以
 | V7 | DAC E (4) | GP17 |
 | V8 | DAC G (6) | GP18 |
 
-### RandomSynth 模式输出
-
-| 插座 | 信号 | 说明 |
-| --- | --- | --- |
-| 组1 CV（DAC B） | V/OCT | 1V/oct，按设置量程 1/2/5 |
-| 组2 CV（DAC D） | FX SEND | 0–5V，按 FX SEND 百分比缩放 |
-| 组3 CV（DAC F） | PAN | 0–5V，中心 2.5V，取触发小球的 X 位置 |
-| 组1 Gate（GP22） | GATE | 跟随触发音符的 gate 长度，极性可设 |
-| 组2 Gate（GP21） | TRIG | 20ms 触发，极性可设 |
-
-其余组3/4 的 Gate、组4 CV 在 Random 模式保持关闭/0V。VCV 版源码和插件在：
-<https://github.com/ovikveber/RandomSynth-VCV>。子波规则：只有初始波能在墙上生成
-**1 个子波**，子波不再继续生成。
-
 ## 编译
 
 Arduino IDE 2.x + Earle Philhower RP2040 核心。本板是 16MB flash 的 RP2040，
@@ -101,7 +80,7 @@ rp2040:rp2040:generic:flash=16777216_0,boot2=boot2_w25q128jvxq_4_padded_checksum
 ## 校准
 
 `NOTE0`（对应 0V 的 MIDI 音符）和 `CV_FULLSCALE_V` 是常量，DAC8568 内部基准准确，
-一般不需要校准。MIDI 通道、V/oct 量程和 Gate 极性都在屏幕/编码器 UI 里设置。
+一般不需要校准。MIDI 通道、1/2/5V 满量程和 Gate 极性都在屏幕/编码器 UI 里设置。
 
 ## 文件
 
@@ -110,12 +89,10 @@ firmware/midi2cv/midi2cv.ino   主固件
 firmware/midi2cv/Display.cpp    ST7789 PIO+DMA 驱动
 firmware/midi2cv/Display.h
 firmware/midi2cv/font5x7.h      5x7 字库
-firmware/midi2cv/RandomWorld.h  RandomSynth 粒子世界
-firmware/midi2cv/RandomWorld.cpp
 firmware/screen_test/           屏幕/编码器测试 sketch
 firmware/pin_scan/              GPIO 扫描排查工具
 firmware/oc_test/               超频验证工具（420/432 稳定，436+ 不稳）
-firmware/midi2cv_random_20261022.uf2  当前固件
+firmware/midi2cv_20261025_v33_no_random.uf2  当前固件
 firmware/screen_test_20261022_encoder.uf2  屏幕测试固件
 hardware/                      BOM、Gerber、板子照片
 docs/wiring-table.txt          引脚和接口表
@@ -139,41 +116,34 @@ of each voice.
 
 > **Status: in development.** The PCB arrived on 2026-10-22; the left 4 CV/Gate groups are
 > soldered and verified, and the ST7789 + encoder channel UI is implemented. Current
-> firmware: `firmware/midi2cv_random_20261022.uf2`. CPU runs at 420 MHz (PLL/source verified,
+> firmware: `firmware/midi2cv_20261025_v33_no_random.uf2`. CPU runs at 420 MHz (PLL/source verified,
 > falls back to 125 MHz); display SCLK is 52.5 MHz. Groups 5–8, the private bus and
 > calibration are still pending.
 
 ## Features
 
 - 8 voices, each with its own MIDI channel (1..16, stored in EEPROM)
-- CV range **1V / 2V / 5V per octave**; gate polarity **+ / -**
+- CV is fixed **1V/oct**; full-scale is selectable **1V / 2V / 5V** (1/2/5 octaves,
+  like the Korg SQ-1 CV RANGE), and notes above the range clamp; gate polarity **+ / -**
 - ST7789 240x240 single-column scrolling UI:
   - MIDI mode: V1–V8, GATE, V/OCT (10 rows); channel rows have a blue bar and gate LED
   - Clock mode (IO24): groups 1–4's eight jacks = C1–C8,
     groups 5–8 remain MIDI V5–V8
-  - RandomSynth mode (IO23): the field fills 240×222; bottom-left shows SCALE and the
-    KNOB binding, bottom-right has OUT note (with cents) on one line and fixed-width
-    GATE/TRIG ON/OFF on the next; the encoder adjusts field size, press for settings
+- CC#120 (All Sound Off) / CC#123 (All Notes Off) clear notes per channel; MIDI Stop
+  clears all notes; changing a voice's MIDI channel in the UI clears that voice
+  immediately to avoid stuck gates
 - EC11 encoder: rotate to select a row (1px blue box), press to edit (orange box),
   press again to exit and save
 - Clock: the PLAY row is at the very top; BPM 20–300 + the 24 docB PwmClock ratios
 - Clock defaults to paused; MIDI Start/Stop/Continue also work; no RUN/RESET hardware out
-- RandomSynth: starts with 12 balls; collisions produce V/OCT, GATE, TRIG and FX.
-  Settings cover ball size/speed, waves, pitch range/scale, PITCH/ADSR/FX ratios,
-  add-ball, booster, reset and SHAPE
-- RandomSynth outputs: **G1 CV=V/OCT, G2 CV=FX SEND, G3 CV=PAN, G1 Gate=GATE, G2 Gate=TRIG**
-  (PAN is 0–5 V with 2.5 V center; each group has one DAC CV + one gate)
-- RandomSynth settings: V/OCT range 1/2/5, GATE/TRIG polarity and FX SEND.
-  The BIND row binds any parameter to the main-page encoder (one at a time)
-- RandomSynth continuous values display as **0.00–1.00** (min/max effect unchanged);
-  RANGE is the exception: it shows actual octaves with **2 decimals**
-- The **FINE** button row sits above RANGE and switches between 0.5-octave steps
-  (OFF) and 0.01-octave fine steps (ON)
-- The field is 222 px high and collision glow is a soft self-glow (no ring outline)
-- Random rendering avoids per-frame heap allocations; only the newest 10 field
-  glows and 16 waves are drawn, keeping long runs smooth
-- IO23 short press enters Random; if IO23 is missing/dead, **hold IO24 ~0.8 s** instead
-- Encoder runs on GPIO interrupts; LEDs update locally on change; MIDI mode has no clock timer
+- Encoder uses **GPIO interrupts** (A/B CHANGE); the ISR only accumulates steps.
+  A change renders the next frame; the full-frame DMA is non-blocking, so MIDI and outputs
+  keep being serviced while it runs; LEDs record their drawn state and update on change;
+  MIDI mode has no clock timer
+- **Channel edits are staged**: while editing, only the on-screen pending channel changes
+  and the old channel keeps working. Pressing again exits edit and only then applies the new
+  channel and clears that voice's notes/gate. Switching to Clock while editing
+  automatically exits edit first
 - RP2040 at 420 MHz (1.3 V, PLL/clock-source verified; falls back to 125 MHz)
 - ST7789 SCLK 52.5 MHz (integer divider, 12 mA + fast slew), full frame ~17.55 ms
 - Fixed USB descriptors so Windows and FL Studio do not accumulate ghost devices
@@ -184,7 +154,7 @@ of each voice.
 | Signal | Pin |
 | --- | --- |
 | DAC SCLK / DIN / SYNC | GP28 / GP27 / GP26 |
-| Gate V1..V8 | GP22 GP21 GP20 GP19 GP18 GP17 GP16 GP15 |
+| Gate V1..V8 | GP22 GP21 GP20 GP19 GP15 GP16 GP17 GP18 |
 | Encoder A / B / SW | GP13 / GP12 / GP11 |
 | Digital bus | GP14 |
 | OLED SCL / SDA / RST / DC / CS / BL | GP10 / GP9 / GP8 / GP7 / GP6 / GP5 |
@@ -208,20 +178,6 @@ the firmware is the reference:
 | V7 | DAC E (4) | GP17 |
 | V8 | DAC G (6) | GP18 |
 
-### RandomSynth mode outputs
-
-| Jack | Signal | Notes |
-| --- | --- | --- |
-| Group 1 CV (DAC B) | V/OCT | 1 V/oct, scaled by the 1/2/5 range setting |
-| Group 2 CV (DAC D) | FX SEND | 0–5 V, scaled by the FX SEND percentage |
-| Group 3 CV (DAC F) | PAN | 0–5 V, 2.5 V center, from the triggering ball's X position |
-| Group 1 Gate (GP22) | GATE | Gate length follows the note, polarity configurable |
-| Group 2 Gate (GP21) | TRIG | 20 ms trigger, polarity configurable |
-
-The remaining group 3/4 gates and group 4 CV stay low/0 V in Random mode. VCV source and
-plugin: <https://github.com/ovikveber/RandomSynth-VCV>. Wave rule: only the initial wave
-may create **one child wave** at a wall; child waves never spawn further waves.
-
 ## Build
 
 Arduino IDE 2.x with the Earle Philhower RP2040 core. This board has 16 MB flash, so build
@@ -241,8 +197,8 @@ The old 500 MHz reading was `clock_get_hz` lying; the clock was actually on 48 M
 ## Calibration
 
 `NOTE0` (the MIDI note that maps to 0 V) and `CV_FULLSCALE_V` are constants because the
-DAC8568 internal reference is accurate. MIDI channels, V/oct range and gate polarity are
-set from the screen/encoder UI.
+DAC8568 internal reference is accurate. MIDI channels, the 1/2/5 V full-scale and gate
+polarity are set from the screen/encoder UI.
 
 ## Files
 
@@ -251,12 +207,10 @@ firmware/midi2cv/midi2cv.ino   main firmware
 firmware/midi2cv/Display.cpp   ST7789 PIO+DMA driver
 firmware/midi2cv/Display.h
 firmware/midi2cv/font5x7.h     5x7 font
-firmware/midi2cv/RandomWorld.h RandomSynth particle world
-firmware/midi2cv/RandomWorld.cpp
 firmware/screen_test/          screen/encoder test sketch
 firmware/pin_scan/             GPIO scan bring-up tool
 firmware/oc_test/              overclock verification tool (420/432 stable)
-firmware/midi2cv_random_20261022.uf2       current firmware
+firmware/midi2cv_20261025_v33_no_random.uf2       current firmware
 firmware/screen_test_20261022_encoder.uf2  screen test firmware
 hardware/                      BOM, Gerber archive, board photos
 docs/wiring-table.txt          pin and connector table

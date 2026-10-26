@@ -262,8 +262,121 @@
   - VCV Library issue #990 指向 `4b0df0d`；正文/9 楼/10 楼已统一
   - VCV 插件 2.0.1 已重编译并安装到本机 Rack；5 个输出均距，PAN 最右
 
-## 6. 当前状态（2026-10-23）
-- 当前固件：`firmware\midi2cv_random_20261022.uf2`
+- **2026-10-25 v19（编码器卡顿 / V/OCT / 输出检查）**：
+  - 编码器本身在 ISR 里只读 A/B，没问题；卡顿来自每转一格就整屏重绘 + 17.55ms 全屏 DMA，
+    加上选择框弹簧动画连续重绘，期间 `midiTask()` 不跑，MIDI 音符成片延迟/丢失。
+  - 修复：转动期间只记脏；停手 30ms 后只刷一帧；去掉选择框弹簧动画；编码器单次增量限幅 ±10。
+  - `updateOutputs()` 不再整段关中断；DAC 32bit 帧改为每帧 `save_and_disable_interrupts()`，
+    缩短编码器/USB 被屏蔽的时间（原来 8 路连续 768 次 digitalWrite 全在临界区）。
+  - V/OCT 改为 **Korg SQ-1 语义**：1V/oct 固定，1/2/5 是 CV 满量程（1/2/5 个八度），
+    超出量程封顶；MIDI 和 Random 两处都改。
+  - 发现并修复一个会“卡住输出”的逻辑 bug：在 UI 里改某一路 MIDI 通道时，
+    该路原来的 note stack/gate 没有清空；如果当时有音符在响，之后收不到旧通道的
+    note-off，Gate 会一直保持、CV 停在最后一个音。现在改通道会清空该路音符并重算输出。
+  - 新增 CC#120（All Sound Off）/ CC#123（All Notes Off）：按通道清空 note stack 和 Gate，
+    用于 DAW 停止后清残留音。
+  - 重新核对 5–8 组映射：`gatePin={22,21,20,19,15,16,17,18}`，
+    `dacCh={1,3,5,7,0,2,4,6}`，与接线表第十节一致，代码无错位。
+  - 5–8 组若仍“一直满输出”，优先怀疑 V/OCT=5 时音符早就超过 5V（旧行为必饱和）、
+    Gate 极性、右半未焊/缓冲器供电，或改通道时留下的卡音；需要用万用表按已知音符逐路量。
+
+- **2026-10-25 v20（输出彻底不被 UI 拖住）**：
+  - v19 只做到“转动时不重绘”，但慢速转动时每格仍会触发一帧 17.55ms 全屏 DMA，期间不处理 MIDI。
+  - 新增 `displayFlushBegin/Busy/End`：整帧 DMA 后台运行，主循环在等待期间持续调用
+    `serviceMidi()`（读 MIDI + 需要时 `updateOutputs()`），MIDI 延迟压到 <1ms。
+  - `uiRender()` 每画完一行也调用 `serviceMidi()`；因此推屏、画 UI 都不再饿死输出。
+  - 改通道时的清音从“每转一格就清”改为“退出编辑时清”，这样在 CH 行编辑时转动编码器
+    不会每格都把 Gate 拉掉；退出编辑后该路 note stack/Gate 清零、CV 回 0V。
+  - 当前固件 `midi2cv_20261025_v20.uf2`。
+
+- **2026-10-25 v21（屏幕 LED 卡亮 / 通道改动后无输出）**：
+  - 找到 v20 引入的一个真实显示 bug：`serviceMidi()` 现在会在画屏和推屏期间处理 MIDI；
+    如果 Gate 在这期间变化，屏幕上的 12px 指示灯会画成旧状态，而 `uiSyncLedCache()`
+    记录的是新状态，之后 `uiFlashDots()` 认为“没变化”就不再重画 → **LED 永久卡亮**。
+    修复：每次整帧刷新后置 `uiLedForce`，强制把可见行的指示灯重画一次再记录缓存。
+  - 改通道恢复为**立即**清空该路 note stack/gate、CV 回 `NOTE0`，不再等退出编辑；
+    避免“换了通道、没 MIDI、Gate 还亮”。
+  - 增加 USB 掉线检测：`TinyUSBDevice.mounted()` 由 true→false 时清空所有声部的
+    note stack 和 Gate（拔掉 USB 但机箱还供电时不会留下常亮 Gate）。
+  - 注意座子/声部对应：**U5 是组3 的 Gate，对应声部 V3（默认 ch3）**；
+    V5 用的是 U10。把 V1 的 CH 改成 5 不会让 U5 响应 ch5；要 U5 跟 ch5，
+    应该把 **V3** 的 CH 改成 5，要恢复就改回 3。改错行会表现为“换了通道但还是没反应”。
+  - 当前固件 `midi2cv_20261025_v21.uf2`。
+
+- **2026-10-25 v22（LED 缓存最终修法 / MIDI Stop 清音）**：
+  - 去掉 v21 的 `uiLedForce` 全量重画：`uiRender()` 画每个指示灯时就把“实际画出的状态”
+    写进 `uiLedCache`，不再在推屏后覆盖成当前状态；推屏期间 Gate 变了，下一轮
+    `uiFlashDots()` 自然补刷。既不会卡亮，也不需要每次重画所有灯。
+  - MIDI Stop（0xFC）除了停 clock，还会清空所有声部的 note stack 和 Gate；
+    DAW 停止但不发 note-off 时不会留下常亮 Gate。
+  - 当前固件 `midi2cv_20261025_v22.uf2`。
+
+- **2026-10-25 v23（按用户规则重写控制路径）**：
+  - **编码器彻底移除 GPIO 中断**：`encPoll()` 在主循环、UI 每行绘制、Random 推屏期间轮询，
+    不再有任何 ISR 触碰编码器或输出。
+  - **推屏不再阻塞**：整帧 DMA 启动后立即返回，主循环继续跑 `midiTask()`/`updateOutputs()`；
+    DMA 完成才收尾 CS，期间不做整屏等待。模式切换时才等待当前帧结束。
+  - **通道编辑改为暂存**：编辑时只改 `editChan`，`chan[]`/MIDI 路由/输出完全不变；
+    退出编辑才提交、清空该路 note stack/Gate、CV 回 `NOTE0`，之后新通道才生效。
+    编辑中切换 Clock/Random 会自动提交并退出编辑。
+  - V/OCT 保持：1V/oct 固定，1/2/5 = 最大电压 = 1/2/5 个八度，超出封顶（SQ-1）。
+  - 指示灯状态在 `uiRender()` 画灯时记录，DMA 期间变化由 `uiFlashDots()` 补刷。
+  - MIDI Stop / CC#120 / CC#123 / USB 掉线都会清残留 Gate。
+  - 当前固件 `midi2cv_20261025_v23.uf2`。
+
+- **2026-10-25 v24（修复编码器不可用/乱跳）**：
+  - v23 删掉弹簧动画后，`uiMove()` 还保留 `if (!uiPainted) uiDirty = true;`，
+    第一次绘制后选择变化不再标脏 → 转编码器屏幕不动，偶尔别的重绘时看起来“乱跳”。
+    改为 `uiMove()` 每次都 `uiDirty = true`。
+  - 编码器轮询加 **500µs 稳定采样**：AB 变化后要稳定 500µs 才计入，滤掉机械抖动，
+    仍保持每个定位 1 步（`ENC_TRANS_PER_STEP=2`）。
+  - 已通过 1200bps touch 直接刷入板子（COM18），UF2 `midi2cv_20261025_v24.uf2`。
+
+- **2026-10-25 v25（Random 模式 V/OCT 偏音）**：
+  - 原因 1：Random 用 `note-60` 当 0V，而 MIDI 用 `NOTE0=24` 当 0V，同音名差 3 个八度。
+  - 原因 2：v23 把 MIDI 的“1/2/5 = 电压上限”也套到了 Random；默认 `rsVoct=1` 时，
+    随机音域 48–72 几乎全被压到 0V/1V。
+  - 修复：Random 也以 `NOTE0=24` 为 0V，`V/OCT` 恢复为 **1/2/5 V/oct 倍率**（默认 1），
+    输出限制在 0–5V。这样 OUT 显示的同一个音名，在 Random 和 MIDI 模式下 CV 一致。
+  - 固件 `midi2cv_20261025_v25_random_voct.uf2`（准备刷；上次自动刷写时板子没进
+    BOOTSEL，报 “No drive to deploy”，需要重新插拔/BOOTSEL 后再刷）。
+
+- **2026-10-25 v26（Random 取消 V/OCT，RANGE 立即生效）**：
+  - Random 设置里**删除 V/OCT 行**；随机音高固定 **1V/oct**，仍以 `NOTE0=24` 为 0V，
+    音域完全由 **RANGE（0.5–8 八度）** 决定。
+  - 改 RANGE 时立即把当前 `rsNote` 按新/旧音域比例缩放，并用当前 SCALE 重新量化，
+    然后立刻刷新 CV——不用等下一次碰撞就能听/量到变化。
+  - 修 “音不准”：Random 的 CV 和 MIDI 使用同一个 0V 基准；同一个 OUT 音名两模式电压一致。
+    如果 VCO 不是按 MIDI C1=0V 校准，先用量 MIDI 模式调 VCO，再看 Random。
+  - 编码器稳定采样从 500µs 降到 200µs，减少快速转动丢步/看起来卡住。
+  - 若 RANGE 每次只变 0.01，检查 FINE 是否为 ON；OFF 时是 0.5 八度步进。
+  - 已刷入，固件 `midi2cv_20261025_v26_random_range.uf2`。
+
+- **2026-10-25 v27（撤回编码器轮询 + 修设置页卡死）**：
+  - 按用户要求恢复编码器 **GPIO 中断**（A/B CHANGE），ISR 只累计步数，
+    主循环照旧用 `noInterrupts()` 一次性取走；去掉 200/500µs 轮询滤波。
+  - 设置页卡死按“推屏状态机卡住”处理：
+    - `displayFlushBusy()` 启动后至少保持 100µs busy，避免刚触发就被误判完成；
+    - DMA/PIO 等待全部加超时，超时 `displayFlushAbort()` 复位 DMA + PIO + CS；
+    - `uiPollFlush()` 超过 200ms 强制 abort，UI 不会永久卡在 `uiFlushActive`。
+  - v26 的 Random 改动保留：无 V/OCT 行、固定 1V/oct、RANGE 立即重算 CV。
+  - 已刷入，固件 `midi2cv_20261025_v27_encoder_isr.uf2`。
+
+- **2026-10-25 v28（小球引擎整体换成 VCV 原版）**：
+  - `RandomWorld.cpp/h` 直接由 `RandomSynth-VCV/src/WorldCV.cpp/h` 复制而来，物理/碰撞/
+    音高/音阶/波形代码未改。仅三处平台适配：`#include` 文件名、`std::random_device`
+    改为 `micros()` 播种（RP2040 没有 `_getentropy`）、加了两个只读的球/加速器计数接口。
+  - 引擎场地保持 VCV 的 **620×200**，显示层按比例缩放到 240×222；物理坐标不变。
+  - Random 参数与 VCV 对齐并删掉 Pico 独有项：V/OCT、FX SEND、KNOB/BIND、GATE/TRIG 极性；
+    列表顺序为 BACK、SHAPE、SCALE、RANGE、FINE、FIELD、BALL、SPEED、WAVE、W.SPD、
+    PITCH、ADSR、FX、+BALL、+BOOST、RESET。主页面编码器固定调 FIELD。
+  - 输出按 VCV 公式：pitch=(note-60)/12，FX=send×10（Pico 0–5V 按 ×0.5 缩放为 send×5），
+    PAN 仍用硬件适配 (pan+1)×2.5（DAC 不能负压）；Gate/Trig 正极性 5V。
+  - 编码器恢复 GPIO 中断；推屏超时/abort 保护保留。
+  - 已刷入，固件 `midi2cv_20261025_v28_vcv_engine.uf2`。
+
+- **2026-10-25 v29（场地按屏幕比例）**：\n  - 按用户要求，场地尺寸不再用 VCV 的 620×200，改回屏幕比例 **240×222**；\n    只改 RandomWorld.h 的 ieldW/fieldH 两个常量，物理/碰撞算法不动。\n  - 显示层去掉缩放（kx=ky=kr=1），直接按 240×222 画。\n  - 已刷入，固件 midi2cv_20261025_v29_vcv_engine_screenfield.uf2。\n\n- **2026-10-25 v30（长时间卡死/看门狗复位的根因）**：\n  - VCV 原版引擎每 16ms 在 updateWaves() 里新建 std::vector<PendingWave>、\n    std::vector<const Segment*> hits、std::vector<float> chosen；每个 Wave 还带\n    std::vector<int> hitUids，enforceTypePresence() 也每次新建 vector。\n    在 PC 上没问题，但 RP2040 上会持续 malloc/free，玩几分钟后堆碎片/分配失败，\n    主循环卡住 → 8s 看门狗复位。\n  - 只改内存管理、不改物理：\n    - PendingWave[32]、hits[128]、chosen[128]、candidates[32]、missing[3] 固定数组\n    - Wave::hitUids 改成 std::array<int,32> + hitCount\n    - 构造时预留 balls/fields/waves/events/boosters/sparks/links/segments/boundary\n  - 碰撞、音高、音阶、波形、子波规则都没有改；场地仍是 240×222。\n  - 已刷入，固件 midi2cv_20261025_v30_vcv_nomalloc.uf2。\n\n- **2026-10-25 v31（串口定位完成，修复后删除串口）**：\n  - 诊断固件在 RAM/看门狗 scratch 里记录阶段；两次复位分别落在：\n    - lastStage=8 → World::update()\n    - lastStage=11 → sApplySettings()\n  - 原因 1：uildBoundary() 每次 FIELD/SHAPE 改动都新建 std::vector<V2>，\n    ebuildScaleTable()/各个 vector 也反复扩容；RP2040 堆碎片后卡在 malloc/设置应用。\n    修复：uildBoundary 改固定 std::array<V2,128>；所有 vector 构造时预留容量。\n  - 原因 2：World::update() 的球体子步循环用速度算 steps，速度异常/NaN 时\n    steps 会变成天文数字，循环 8 秒触发看门狗。\n    修复：速度/坐标/半径 NaN 归位、单球速度上限、allSpeed 校验、steps 限制 1–64。\n  - 画圆/画线加 finite 检查和半径上限，避免异常几何把 CPU 拖死。\n  - 串口诊断、心跳、worldStage、串口命令全部删除；最终固件无 Serial 输出。\n  - 最终固件 midi2cv_20261025_v31_vcv_final.uf2。\n\n- **2026-10-25 v32（碰撞范围圈硬上限）**：\n  - World::addField() 的半径加硬上限：范围圈面积不超过整个场地面积的 **1/16**，\n    即 adius <= sqrt(fieldW*fieldH/(16*pi))，240×222 场地约 **32.6px**。\n  - 直接锁死所有碰撞生成的范围圈（视觉和影响半径都受此上限），大幅降低大面积 alpha 混合开销。\n  - 已刷入，固件 midi2cv_20261025_v32_fieldcap.uf2。\n\n- **2026-10-25 v33（删除 RandomSynth / 小球功能）**：\n  - 按用户要求彻底移除 Random 模式：删除 RandomWorld.cpp/h、所有 rs*/UI_RS_* 逻辑、\n    IO23/长按 IO24 入口、Random 参数/EEPROM 字段的使用部分（Cfg 结构保留以兼容 EEPROM）。\n  - 只保留 MIDI 模式与 Clock 模式；IO24 短按仍切换 MIDI/CLOCK。\n  - 代码量从 ~122KB 降到 ~91KB，RAM 从 149KB 降到 134KB。\n  - 已刷入，固件 midi2cv_20261025_v33_no_random.uf2。\n\n## 6. 当前状态（2026-10-23）
+- 当前固件：`firmware\midi2cv_20261025_v33_no_random.uf2`
   - 16MB flash + `boot2_w25q128jvxq_4` + TinyUSB
   - CPU **420MHz**（PLL 校验通过；失败回退 125MHz）
   - 屏幕 **52.5MHz SCLK**（整数分频），整帧约 17.55ms，UI 约 50fps
