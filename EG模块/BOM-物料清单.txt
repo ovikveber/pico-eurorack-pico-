@@ -1,0 +1,107 @@
+EG模块 物料清单（BOM）
+版本：1.2（按 EDA 实际器件；新增 C45 AREF 去耦；全板复核后更新）
+日期：2026-11-04
+
+概述
+  2× ADSR + 2× AR + 4× Decay，8× 0~10V 输出，
+  8× Gate + 8× Retrig 输入，16 模拟控制（8 推子 + 8 旋钮，10k 线性），24 LED。
+  主控 Pico 1，DAC8568，2× ADS8688，CD74HC4067（knobbus），TLC5947，2× OPA4171。
+
+最终物料（数量 / 位号 / 型号 / 立创 / 封装 / 备注）
+----------------------------------------------------------------------------
+主芯片
+1   P1              Raspberry Pi Pico (RP2040)      C7203002   module
+1   DAC1            DAC8568ICPWR                    C524819    TSSOP-16
+2   ADCA,ADCB       ADS8688IDBTR                    C527390    TSSOP-38
+1   KNOBBUS         CD74HC4067SM96                  C98457     SSOP-24
+1   LED_DRV1        TLC5947DAPR                     C2873022   TSSOP-32-EP
+2   U1,U2           OPA4171AIPWR                    C529553    TSSOP-14
+
+电阻
+16  R1-R16         1k 1%                           C21190     0603   Gate/Retrig 输入串阻
+16  R18,R19,R22,   10k 0.1%                        C5126214   0603   DAC 增益 Rf/Rg
+    R23,R26,R27,
+    R30,R31,R34,
+    R35,R38,R39,
+    R42,R43,R46,R47
+17  R20,R21,R24,   1k 0.1%                         C49196685  0603   输入滤波/输出串阻/knobbus
+    R25,R28,R29,
+    R32,R33,R36,
+    R37,R40,R41,
+    R44,R45,R48,
+    R49,R51
+1   R17            100k 1%                         C2906980   0603   Q1 栅极到 GND
+1   R50            22k 1%                          C31850     0603   TLC IREF（~2.2mA/路）
+1   R52            0Ω 1% 0.5W                      C51934133  0805   5V 分流：+5V→+5VLED 单点连接
+
+电容
+18  C1,C2,C4,C6,   10µF 25V X5R 0805               C19103847  0805   各芯片电源/基准储能
+    C11,C13,C15,
+    C16,C18,C20,
+    C21,C23,C25,
+    C27,C37,C39,
+    C41,C43
+24  C3,C5,C7,C12,  100nF 50V X7R 0603              C286510    0603   退耦/滤波（含 C45）
+    C14,C17,C19,
+    C22,C24,C26,
+    C28,C29,C30,
+    C31,C32,C33,
+    C34,C35,C36,
+    C38,C40,C42,
+    C44,C45
+3   C8,C9,C10      100µF 25V 固态 D5×L9            C442813    THT    -12V/+12V/+5V 储能
+
+  注：C45 = Pico ADC_VREF(pin35) 到 GND 的 100nF。
+  注：ADS8688 的 REFCAP 目前是 10µF+100nF（C2/C3、C16/C17）；手册建议
+      10µF + 1µF，如要更稳可把 C3/C17 改 1µF。
+
+二极管 / 保护
+24  D1-D16,         BAT54S,215                      C47546     SOT-23 输入×16 + 输出×8 钳位
+    D23-D30
+2   D17,D19         SS54                            C7420369   SMA    +12/−12V 防反接
+2   D18,D20         SMBJ15CA                        C908848    SMB    ±12V TVS
+1   D21             SMBJ5.0CA                       C19077559  SMB    5V TVS
+1   D22             BZX84C10                        C235751    SOT-23 Q1 栅源钳位（可选）
+1   Q1              AO3401A-HXY                     C22367235  SOT-23-3L 5V 防反接
+
+LED
+24  LED1-LED24      EL304RD 3mm 红光                C2856645   THT    8 输出+8 Gate+8 Retrig
+
+连接器
+1   CN1             HB-DC32-254216PB2GOB            C46598204  THT    16pin 电源
+24  J1-J24          3.5mm 单声道插座                （待定）   THT    16 输入带开关 + 8 输出
+
+机电
+8   RV（ARAA/ARAR/ ARBA/ARBR/DECAY01-04） ALPS RK09K11300DR 10k 线性  C3020615  THT  8 旋钮
+8   SL（AA,AD,AR,AS,BA,BD,BR,BS）  75mm 双联 10k B 直滑   （待定）  THT  8 推子，仅用一组
+8   -  6mm 旋钮 / 推子帽 / 前面板 / M3 铜柱+螺丝          -         -    机械件
+
+电源估算
+  +12V ≈ 4mA（运放）
+  -12V ≈ 4mA（运放）
+  +5V  ≈ 175mA（Pico 50 + DAC 1.3 + ADS×2 40 + TLC 10 + LED 72）
+  +3V3 ≈ 15mA（两 ADC DVDD + knobbus + 电位器 + TLC VCC）
+
+关键设计点
+  - 5V 防反接：Q1 AO3401A（引脚 1=G、2=S、3=D；D→+5VIN、S→+5V、G→100k→GND）+ BZX84C10；不用肖特基/理想二极管。
+  - ±12V 防反接：SS54；TVS SMBJ15CA（±12V）、SMBJ5.0CA（5V）。
+  - DAC8568ICPWR（C 档）：VREF=10µF；内部基准默认关，固件须先使能；C 档满量程 0~5V
+    （不是软件设增益，是器件等级决定），AVDD 需 ≥5V。
+  - ADS8688：REFIO=10µF、REFCAP=10µF+100nF（建议 1µF）、REFSEL=GND（内部基准）、
+    DAISY=GND（单机）、RST#=+3V3；输入 ±10.24V 覆盖 0/10V。
+  - 运放 OPA4171：同相×2（Rf=Rg=10k 0.1%），输入 1k+100nF，输出 1k + BAT54S(GND/+12V)。
+  - TLC5947：VCC=+3V3（匹配 Pico 3.3V 逻辑），LED 阳极 +5VLED；IREF 22k≈2.2mA/路。
+  - 5V 分流：+5VIN→Q1→+5V；+5V→R52(0Ω)→+5VLED。芯片用 +5V，24 LED 阳极用 +5VLED，单点连接。
+  - knobbus：VCC=+3V3，COMMON→1k→GP28（ADC2），选择 S0/S1=GP26/GP27、S2/S3=GP21/GP22。
+  - 推子/旋钮：10k 线性。推子按作者实物确认的当前接法（pin1=+3V3、pin2=GND、pin3→Ix）；
+    旋钮 RK09K 的 pin2 为动片。
+
+待办
+  - 3.5mm 插座：PCB 现用 PJ-301M（Thonkiconn 类）封装；75mm 推子封装已定。
+  - 打样前统一位号（Annotate）；DRC 位号提示可忽略。
+  - 复核建议（可选）：ADS8688 REFCAP C3/C17 改 1µF；mux 输出加 10nF；
+    TLC BLANK 加 10k 上拉；确认输出插座开关脚是否要接地；确认板宽（现约 42HP）。
+  - 固件：全部 SPI/类 SPI 走 PIO（DAC/ADCA/ADCB/TLC 各 1 SM；PIO0=DAC+ADCA，PIO1=ADCB+TLC）；
+    knobbus（GP26/27/21/22 + GP28）、包络引擎、基准/量程/校准。
+  - PCB：8 层叠层（顶/GND/LED/GND/运放/3V3/5V/底），5V 分模拟/LED 两网络经 R52 单点；
+    TLC EP 散热焊盘、PowerPAD、SPI 串阻。

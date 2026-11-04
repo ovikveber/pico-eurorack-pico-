@@ -1,0 +1,403 @@
+EG模块 项目日志
+================
+版本：0.5（原理图+PCB 全板复核；对照数据手册）
+记录日期：2026-11-04
+
+一、需求
+-------
+- 2× ADSR（A/D/S/R）
+- 2× AR（A/R）
+- 4× Decay（单 Decay）
+- 每一路都有 Gate 输入 + Retrigger 输入（全部带重触发）
+- 8× CV 输出，0~10V（VCV/Eurorack 单极性 CV）
+- Gate/Retrig 输入 0/10V，带保护
+- 16 个模拟控制：8 个推子（ADSR）+ 8 个旋钮（AR/Decay）
+- 24 个 LED：8 个输出 + 8 个 Gate + 8 个 Retrig
+- 目标面板：20~24HP（20HP 偏紧，24HP 更舒服）
+
+二、方案选择
+-----------
+- 从模拟方案改为数字方案：Pico 1（RP2040）
+- 原因：多通道、retrigger/loop、曲线形状、通道一致性、扩展性；
+  不需要模拟 VCA，模块保持为纯 CV/包络发生器
+- 输出：1× DAC8568（8 通道、16 位、SPI、0~5V 内部基准）
+  - 每路经 OPA4171AIDR 同相放大 2 倍 -> 0~10V（2 片四运放）
+  - 8 路分配：ADSR1、ADSR2、AR1、AR2、Decay1~4
+- 输入：2× ADS8688（8 通道、16 位、±10.24V、1MΩ、±20V OVP）
+  - 一片读 8 路 Gate，一片读 8 路 Retrig
+  - 每路 1k 串阻 + BAT54S 钳到 ±12V；ADS8688 内部 OVP 作为第二道保护
+  - 15kHz 抗混叠滤波对 1ms trigger 没问题
+  - 轮询 >= 10kHz，软件阈值 + 迟滞（例如 2.5V 开、2.0V 关）
+- 模拟控制：1× CD74HC4067（16 通道 mux）+ Pico ADC
+  - 8 推子 + 8 旋钮 = 16 路，正好一片
+  - 5 根 GPIO（4 选择 + 1 ADC；使能脚接地）
+  - mux 输出 10nF/100nF + 1k 到 ADC
+- LED：1× TLC5947（24 通道、12 位 PWM、恒流）
+  - 24 路刚好：8 输出 + 8 Gate + 8 Retrig
+  - IREF 设 2~3mA，LED 不用串电阻
+  - 短 trigger 做 30~50ms 脉冲展宽，否则肉眼看不清
+- 电源：±12V；5V 由 LM7805 从 +12V 生成；3.3V 用 Pico 板载
+  - 5V 估算 ~175mA；7805 功耗 ~1.2W，需要散热片
+  - 如果机箱有稳定 +5V，可跳过 7805
+- 保护：PTC ×2、肖特基 ×2、BAT54S 输入钳位、可选 TVS
+
+三、引脚分配（草案）
+-------------------
+- SPI0（DAC8568）：GP2 SCK, GP3 MOSI, GP5 CS, GP6 LDAC
+- SPI1（2× ADS8688）：GP10 SCK, GP11 MOSI, GP12 MISO, GP13 CS1, GP14 CS2
+- CD74HC4067：GP16~GP19 选择, GP26 ADC
+- TLC5947：GP20 SIN, GP21 SCLK, GP22 XLAT, GP15 BLANK
+- 按钮（可选）：GP0, GP1, GP4
+- 备用：GP7, GP8, GP9, GP27, GP28
+- 说明：TLC5947 的 SPI 模式可能与 DAC/ADS 不同，必要时用 PIO 或单独 SPI
+
+四、软件架构（计划）
+-------------------
+- Core 0：5~10kHz 定时器 -> 8 路包络计算 -> DAC8568 -> LDAC 同时锁存
+- Core 1：1~5kHz -> ADS8688 Gate/Retrig 轮询 -> 每 0.2ms 扫一个 mux 通道 -> 按钮
+- 参数通过双缓冲/无锁结构传给 Core 0
+- 不在中断里 delay；不阻塞式扫完 16 路再更新 DAC
+- DAC 用 LDAC 同步更新 8 路
+- 包络引擎放 RAM（__not_in_flash_func）；编程完成后禁用 USB 中断
+- 旋钮控制时间常数不需要平滑；Sustain/Level 加一阶低通防 zipper
+- 上电先把 DAC 全写 0，LED 全灭，避免“噗”
+
+五、待办
+-------
+[ ] 最终面板宽度/推子行程（20HP vs 24HP）
+[ ] 原理图（Pico、DAC8568、2× ADS8688、CD74HC4067、TLC5947、电源/保护）
+[ ] PCB 布局（数字/模拟分区、完整地平面、LDO、SPI 串阻）
+[ ] 固件：ADS8688 驱动、TLC5947 驱动、8 路包络引擎、参数映射
+[ ] 校准：DAC 0~10V、LED gamma、ADS8688 阈值
+[ ] 打样与测试计划
+[ ] 确认是否保留按钮/电源 LED
+[ ] 确认 PCB 是否分板（主板 + 面板/控制板）
+
+六、参考
+-------
+- benjiaomodular MiniADSR v1.0.1（原始需求来源）
+- René Schmitz "Fastest Envelope in the West"
+- Kassutronics Precision ADSR（精密整流、retrigger/loop 参考）
+- Doepfer A-140-2 / A-140-3（0~10V、Gate + Retrig、CVT）
+- VCV Rack Voltage Standards（10Vpp、0~10V 单极性 CV、0/10V gate）
+- TI DAC8568 / ADS8688 / TLC5947 数据手册
+
+七、2026-10-28 设计更新 / 暂停
+-------------------------------
+状态：设计暂停，先处理电源模块；本模块暂不继续。
+
+1. 最终功能
+- 2× ADSR（A/D/S/R）
+- 2× AR（A/R）
+- 4× Decay
+- 每路都有 Gate + Retrig
+- 8× 0~10V CV 输出
+- 8× Gate + 8× Retrig 输入
+- 16 个模拟控制：8 推子（ADSR）+ 8 旋钮（AR/Decay），10k 线性
+- 24 个 LED：8 输出 + 8 Gate + 8 Retrig
+- 无 VCA，纯 CV/包络
+
+2. 主要器件（已选/已买）
+- Pico 1（RP2040）：C7203002
+- DAC8568ICPWR：C524819，TSSOP-16
+- ADS8688IDBTR ×2：C527390，TSSOP-38
+- CD74HC4067SM96：C98457，SSOP-24
+- TLC5947DAPR：C2873022，TSSOP-32-EP
+- OPA4171AIPWR ×2：C529553，TSSOP-14（8 路 0~10V 输出）
+- BAT54S,215：C47546，SOT-23（PAKER C5278883 封装兼容，可互换）
+- ALPS RK09K11300DR：C3020615，10k 线性 1B，带中心定位
+- EL304RD：C2856645，3mm 红光
+- 电源座 HB-DC32-254216PB2GOB：C46598204，2x8P 2.54mm
+- 75mm 推子：淘宝双联 6 脚 10k B，60mm 行程；只用其中一组，另一组悬空
+- 3.5mm 插座：PJ-301M/Thonkiconn 类；输入 16 个带开关，输出 8 个
+
+3. 输出级
+- DAC 0~5V → OPA4171 同相 ×2（Rf=Rg=10k）→ 0~10V
+- 每路输出串 1k，符合 1k 输出阻抗惯例
+- 输出端 BAT54S 钳到 GND/+12V
+- DAC 到运放之间 1k + 100nF，不需要钳位
+- OPA4171 是 36V 轨到轨输出，±12V 下 10V 没问题；TL074 可替代但顶部余量小
+
+4. 输入级
+- 每路 1k 串阻 + BAT54S 钳到 ±12V + 100pF~1nF
+- ADS8688 内部 ±20V OVP 作为第二道保护
+- 0/10V gate/retrig，软件阈值 + 迟滞（2.5V 开 / 2.0V 关）
+- 不要在每个输入串 PTC；1k 已限流
+
+5. 电源
+- 16pin 牛角座；+12/−12/+5/GND
+- 5V 由板上 LM7805 从 +12V 生成；16pin +5 不接（最终决定，见第八节）
+- 注意：LDO 输出不能直接短接 16pin 的 +5V 总线；用跳线或悬空
+- 电源保护：原计划 PTC ×2、SS34 ×2、SMBJ12A ×2；2026-10-28 决定改为只串 SS54 防反接（PTC/TVS 不装，见第八节）
+- 5V 电流估算约 175mA；7805 约 1.2W，需散热片
+
+6. 引脚（草案）
+- SPI0 DAC：GP2 SCK / GP3 MOSI / GP5 CS / GP6 LDAC
+- SPI1 ADS ×2：GP10 SCK / GP11 MOSI / GP12 MISO / GP13 CS1 / GP14 CS2
+- MUX：GP16~GP19 / GP26 ADC
+- TLC5947：GP20 SIN / GP21 SCLK / GP22 XLAT / GP15 BLANK
+- 按钮（可选）：GP0/GP1/GP4
+- 备用：GP7/GP8/GP9/GP27/GP28
+
+7. 当前原理图状态（2026-10-28）
+- 已放 16 个唯一器件（20 个单元行），0 根导线
+- 位号：P1、DAC1、ADC1/ADC2、MUX1、LED_DRV1、U1/U2、D1、RV1、SL1、J1、LED1
+- BOM 仍用 U1~U9 的一套位号，和原理图不一致，需统一
+- D1 原理图用 C47546，BOM 用 C5278883；两者封装兼容，选一个
+- U1/U2 原理图用 C529553（TSSOP-14），BOM 用 C46269（SOP-14）；BOM 要改
+- 还没放：5V LDO、PTC/肖特基/TVS、全部电阻电容、完整数量的推子/旋钮/插座/LED
+
+8. 待确认
+- MUX1 符号是 SSOP-24 的逻辑符号，确认和 C98457 封装配套
+- SL1 6 脚分组/方向；上排 wiper 是否在 2.0/7.0mm
+- J1 3.5mm 插座封装和实物一致
+- ADS8688 REFSEL/DAISY/RST# 接法
+- TLC5947 EP 散热焊盘
+- 面板 20HP vs 24HP；推子 20~25mm 行程
+
+9. 暂停原因
+- 先检查电源模块接线，EG 模块暂不推进
+- 恢复时优先：统一位号 → 补全外围 → 连线 → PCB
+
+八、2026-10-28 电源入口决定（暂停前）
+------------------------------------
+（注：本节关于“不加 TVS、5V 用 7805”的决定已被第九节取代）
+- 不再加 PTC / TVS；只保留 SS54 串联反接保护（±12V）。
+- +5V 由板上 LM7805 从 +12V 生成；16pin 的 +5V 不接。
+- 原因：PTC 动作慢、有压降、反复过流；TVS 对短路无效；省板面积。
+- 接受风险：模块内部短路时靠电源/LDO 限流和热关断；电流条/测温可发现。
+- BOM 中 PTC1/PTC2、TVS1/TVS2 标为 DNP（不装）；D1/D2 改 SS54。
+- +5 若以后改用总线 +5，不能串 SS54（压降到 4.6V，10V 输出会掉到 ~9V）；
+  需改 crowbar/理想二极管/防呆座。
+- 状态：暂停；恢复时先统一位号、补外围、连线。
+
+九、2026-10-29 电源入口 / TVS 恢复
+---------------------------------
+- 5V 改为从 16pin 总线输入（电源模块 LM2940-5.0 提供）；撤掉板载 LM7805（U9/HS1 DNP）。
+- 恢复 TVS（用户已购买）：
+  - ±12V：SMBJ15CA，GOODWORK，C908848，DO-214AA，双向，VRWM 15V，
+    VBR 16.7V，VC 24.4V，600W，Ir 5µA。每轨一颗到 GND，放在 SS54 之后、紧贴电源座。
+  - 5V：SMBJ5.0CA，R+O（宏嘉诚），C19077559，DO-214AA，双向，VRWM 5V，
+    VBR 6.4~7.0V，VC 9.2V，600W，Ir 800µA（5V 档漏电偏大，属正常）。
+  - 封装：15CA 用 SMB_L4.3-W3.6-LS5.4-BI；5.0CA 用 SMB_L4.5-W3.6-LS5.2-BI。
+- TVS 定性：主要防上电浪涌/热插拔尖峰/ESD，属粗钳位，不防持续过压；不加纹波。
+- 5V 防反接已定：P-MOS AO3401A-HXY（C22367235，SOT-23，D→5V、S→负载、G→100k→GND）
+  + DZ1 BZX84C10（JSCJ C235751，SOT-23，1=正/2=NC/3=负，阴极→S）做栅源钳位。压降 ~11mV。
+  不用肖特基、不用理想二极管；也可只靠防呆牛角座。PTC 仍不装。
+- 参考其他家：±12V 串肖特基是主流（Erica Synths 等）；16pin 反插会短接 +12/+5/GND（Rossum 用 9/10 脚不接地规避）。
+- 下一步：统一位号 → 补外围（含 TVS、5V 防反接）→ 连线 → PCB。
+
+十、2026-10-29 DAC8568 接法定稿
+----------------------------
+封装 TSSOP-16，逐脚：
+- 3 AVDD → +5V（100nF + 10µF 到 GND）
+- 14 GND → GND
+- 8 VREFIN/VREFOUT → **10µF 到 GND**（内部基准输出；手册要求≥150nF，用 10µF 降噪）
+- 9 CLR → +3V3（高电平，禁用清零）
+- 1 LDAC → Pico GP6（8 路同时更新；或接 GND 则每帧立即更新）
+- 2 SYNC → Pico GP5（片选）
+- 15 DIN → Pico GP3（MOSI）
+- 16 SCLK → Pico GP2（SCK）
+- 4~7,10~13 VOUTA~H → 运放输入（未接）
+要点：
+- 内部 2.5V 基准默认关闭，固件需先发命令开启，否则无输出。
+- AVDD 必须 ≥5V 才能出 0~5V（C 档）。
+- 逻辑高门限 VIH=0.625×AVDD，5V 时=3.125V；Pico 3.3V 够用但余量小（~175mV）。
+- 当前状态：Pico SPI 未接、8 路 VOUT 未接。
+
+十一、2026-10-29 原理图布线进度（网表核对）
+----------------------------------------
+已完成（导出 .enet 网表逐项核对通过）：
+- 电源入口：±12V = SS54 + SMBJ15CA + 100µF；+5V = Q1(AO3401A, D→输入/S→输出) + SMBJ5.0CA + BZX84C10 + 100k + 100µF。
+- 16 路输入（8 Gate=ADCA，8 Retrig=ADCB）：带开关插座、1k 串阻、BAT54S 钳 GND/+12V；AIN_xP→信号、AIN_xGND→GND；Sleeve/Switch→GND。
+- ADCA/ADCB：AVDD=+5V、DVDD=+3V3、DAISY/REFSEL=GND、RST=+3V3、REFIO=10µF、REFCAP=10µF+100nF、REFGND=GND、AUX=GND。
+- DAC8568：AVDD=+5V、GND、VREF=10µF、CLR=+3V3；LDAC/SYNC/DIN/SCLK 待接 Pico。
+- 运放 U1/U2：V+=+12V、V-=-12V，各 10µF+100nF；8 路同相×2（Rf=Rg=10k 0.1%）：VOUT→1k→IN+，IN+ 100nF→GND，IN−→10k→OUT（Rf），IN−→10k→GND（Rg），OUT→1k→输出。
+- 8 路输出：1k 后→3.5mm 输出插座 Tip；BAT54S(A=GND,K=+12V,公共=输出) 钳位；Sleeve=GND；开关脚悬空。
+
+剩余：
+- Pico SPI 接 DAC（SCLK=GP2、DIN=GP3、SYNC=GP5、LDAC=GP6）。
+- Pico SPI1 接两片 ADS（SCK=GP10、MOSI=GP11、MISO=GP12、CS1=GP13、CS2=GP14）。
+- knobbus（CD74HC4067）接 16 旋钮/推子 → Pico ADC（GP16~19 选择，GP26 ADC）。
+- TLC5947 + 24 LED + IREF；推子/旋钮/面板机械。
+- 位号统一（EDA 实际位号 DAC1/ADCA/ADCB/U1/U2/D17~D30/R18~R57/C29~C36 与 BOM 旧位号不一致，画板前 Annotate）。
+
+已知/待确认：
+- ADS REFCAP 现用 100nF，手册建议 1µF（可换）。
+- DAC 内部基准默认关闭，固件需先开启。
+- DAC VIH=3.125V（AVDD=5V），Pico 3.3V 够用但余量小。
+
+十二、2026-10-29 定稿（不再增删器件）
+------------------------------------
+最终器件（按 EDA 实际，BOM v1.0）：
+- 主芯片：Pico ×1、DAC8568 ×1、ADS8688 ×2、CD74HC4067(KNOBBUS) ×1、TLC5947 ×1、OPA4171 ×2。
+- 电阻：1k 1% ×16（输入串阻）、10k 0.1% ×16（Rf/Rg）、1k 0.1% ×17（输入/输出/knobbus）、100k ×1（Q1 栅）、22k ×1（IREF）。
+- 电容：10µF ×18、100nF ×23、100µF 固态 ×3。
+- 保护：BAT54S ×24、SS54 ×2、SMBJ15CA ×2、SMBJ5.0CA ×1、BZX84C10 ×1、AO3401A ×1。
+- LED：EL304RD ×24。连接器：CN1 ×1、3.5mm 插座 ×24（料号待定）。
+- 机电：ALPS RK09K ×8（旋钮）、75mm 推子 ×8（料号待定）。
+
+最终关键决定：
+- TLC5947 VCC=+3V3（LED 阳极 +5V），解决 3.3V 逻辑门限（VIH=0.7×VCC）问题。
+- knobbus COMMON→1k→GP26；VCC=+3V3。
+- BLANK/SYNC#/LDAC# 上拉非必须（Pico 固件会拉高，仅有上电几 ms 窗口）。
+- ADS REFCAP 暂用 100nF（手册建议 1µF，可选改进）。
+- 全量网表核对脚本：223 项全部通过（连接 + 关键数据手册接法）。
+
+剩余：
+- 3.5mm 插座 / 75mm 推子 具体料号与封装。
+- 统一位号（Annotate）。
+- 固件与 PCB（数字/模拟分区、单地、EP/PowerPAD）。
+
+十三、2026-11-03 原理图复核 / 5V 分流 / 8 层叠层 / PIO
+--------------------------------------------------------
+状态：原理图主体完成，数字侧待接线；未打样。
+
+1. 复核结果（实时数据，非旧网表）
+- 唯一位号 200 个（新增 R52），无重复位号；无单点悬空网络。
+- 16 路模拟控制已全接：推子 I0–I7；AR 旋钮 ARAA/ARAR/ARBA/ARBR = I8/I9/I10/I11；
+  Decay 旋钮 DECAY01–04 = I12–I15。
+- KNOBBUS：COMMON→R51(1k)→GP28（ADC2）。注意：原计划 GP26/ADC0，现用 GP28/ADC2，固件按 ADC2 读。
+- 模拟/电源网络数量正常：VOUTA–H 各 2 点、OUTA–H 各 3 点、A/B 输入各 3 点；
+  +12V 33、−12V 9、+5V、+3V3、GND 均正常，无异常合并。
+
+2. 5V 分流（R52）
+- +5VIN → Q1(D/S) → +5V；+5V → R52(0Ω 0805) → +5VLED。
+- 芯片（DAC/2×ADS/Pico）+ 去耦在 +5V；24 个 LED 阳极在 +5VLED。
+- R52 = 0Ω 1% 0.5W 0805，LCSC C51934133（MPN RE0805FAR000）。
+- 曾出现 +5VV 笔误，导致 +5V/+5VLED 与源断开；已修正为 +5V 单点接 R52。
+- 5V 不作为一层电源平面；PCB 时 +5V 与 +5VLED 分开走线，LED 就近 100µF，芯片 10µF+100nF。
+
+3. 数字侧（故意未连，待 PCB 排版）
+- DAC8568：LDAC#、SYNC#、DIN、SCLK。
+- ADS8688 ×2：SDI、SDO、SCLK、CS#（各自独立总线）。
+- KNOBBUS：S0–S3。
+- TLC5947：BLANK、SCLK、SIN、XLAT。
+- Pico：除 GP28（接 R51）外，GPIO 均未连。
+
+4. PIO 方案（全部 SPI/类 SPI 走 PIO）
+- 4 个 SM：DAC（只写）、ADCA（全双工）、ADCB（全双工）、TLC（只写）。
+- PIO0 = DAC + ADCA；PIO1 = ADCB + TLC（指令内存各 2 程序，够）。
+- CS / XLAT / BLANK / LDAC 用普通 GPIO；硬件 SPI0/SPI1 留空备用。
+- 引脚预算：SPI 16 + MUX 5 = 21（不装按钮），Pico 26，剩 5；COMMON 必须 GP26/27/28。
+- DAC 电平：AVDD=+5V，VIH=0.625×5=3.125V，Pico 3.3V 满足（余量 ~175mV），不加电平转换。
+
+5. PCB 叠层（8 层，已定）
+- L1 顶层信号/元件
+- L2 GND
+- L3 LED 走线（被 L2/L4 双 GND 夹住）
+- L4 GND
+- L5 运放/模拟走线
+- L6 3V3 平面
+- L7 5V（+5V/+5VLED 分区，经 R52 单点）
+- L8 底层信号 + GND 铺铜（THT 焊盘多，尽量铺地）
+- 去耦就近打孔到 L2/L4；3V3/5V 相邻成对。
+
+6. 待办
+- Pico 数字侧接线（按排版定 PIO 引脚）。
+- 网表 + DRC 复核（当前 DRC 因未连不通过，属预期）。
+- PCB 布局（8 层、5V 分区、模拟/数字分区、EP/PowerPAD）。
+- 固件（PIO 驱动 + 8 路包络）。
+
+十四、2026-11-04 数字侧接线定稿（Pico ↔ 外设）
+----------------------------------------------
+状态：原理图数字侧已接完并核对通过；PCB 的 Pico 部分已布线，DRC 通过
+（只剩位号提示，忽略）。未打样。
+
+1. 最终 GPIO 接线（网表核对，全部点对点，无重复/漏接）
+- TLC5947（GP0–3，连续 4 脚）
+  SIN=GP0、SCLK=GP1、BLANK=GP2、XLAT=GP3
+  （TLC 其余：VCC=+3V3；GND/EP 接地；IREF→R50 22k→GND）
+- ADCB = B 组（Retrig）（GP6–9，连续 4 脚）
+  SDI=GP6、CS#=GP7、SCLK=GP8、SDO=GP9
+- ADCA = A 组（Gate）（GP10–13，连续 4 脚）
+  SDI=GP10、CS#=GP11、SCLK=GP12、SDO=GP13
+- DAC8568（GP17–20，连续 4 脚）
+  LDAC#=GP17、SYNC#=GP18、SCLK=GP19、DIN=GP20
+- CD74HC4067（knobbus）
+  S0=GP26、S1=GP27、S2=GP21、S3=GP22
+  COMMON→R51(1k)→GP28（ADC2）；VCC=+3V3；E#/GND 接地
+- 备用：GP4、GP5、GP14、GP15、GP16（原理图打 NC 或悬空）
+- ADC_VREF（Pico pin35）：新增 100nF 到 GND（降 ADC 噪声；BOM 的 100nF 需 +1）
+- SWD 调试 GND（Pico pin42）打 NC（不用调试口，可忽略）
+
+2. PIO 分组（与四组连续脚对应）
+- PIO0 = DAC（GP17–20）+ ADCA（GP10–13）
+- PIO1 = ADCB（GP6–9）+ TLC（GP0–3）
+- CS/XLAT/BLANK/LDAC 用普通 GPIO；硬件 SPI0/SPI1 仍留空备用
+- 引脚占用 21 根（16 SPI + mux 5），Pico 26 个 GPIO 足够
+
+3. 相对旧草案的变化（固件/文档须按本节）
+- DAC：旧 GP2(SCK)/GP3(DIN)/GP5(SYNC)/GP6(LDAC) → 现 GP19/GP20/GP18/GP17
+- ADS：旧共享 SPI1（GP10–14）→ 现两片各自独立连续 4 脚（GP6–9、GP10–13），
+  各自独立 SDO，不再共用 MISO
+- MUX：旧 S0–S3=GP16–19 → 现 S0/S1=GP26/27、S2/S3=GP21/22，COMMON=GP28
+- TLC：旧 GP20–22/GP15 → 现 GP0–3
+
+4. 保留结论
+- DAC8568 AVDD=+5V，VIH=0.625×5=3.125V，Pico 3.3V 满足（余量 ~175mV）
+- ADS REFSEL#=GND（内部基准）、DAISY=GND、RST#=+3V3；REFIO/REFCAP 已接
+- DAC VREF=10µF；CLR#=+3V3；内部基准默认关，固件先开启
+- 5V：Pico VSYS=+5V；3V3(OUT)=+3V3 供板上 3V3
+
+5. 下一步
+- PCB 其余部分布线 / 整体 DRC 与网表复核。
+- 按本表写固件（PIO 驱动 + 8 路包络 + knobbus 扫描）。
+- 打样前统一位号（Annotate）、补 BOM 的 100nF（AREF）。
+
+十五、2026-11-04 全板复核（原理图 + PCB，对照数据手册）
+------------------------------------------------------
+状态：只读复核，未改动 EDA。范围：原理图接线、PCB 网表/布局/叠层/回流。
+
+1. 复核结论
+- 方案可行，可打样；数字侧、DAC→运放 0~10V、ADS 采集、TLC 驱动、电源保护均成立。
+- 全板 153 个网络，没有“有焊盘但完全没有走线/过孔/铺铜”的网络。
+- 悬空焊盘仅故意的：ADS pin35(DNC)、TLC SOUT(29)、BZX84 pin2(NC)、
+  Pico 备用/debug/TP、电位器第二组 4/5/6。
+
+2. 已按数据手册确认正确
+- 电源：±12V SS54 方向正确 + SMBJ15CA；+5V AO3401A（1=G、2=S、3=D）
+  D→+5VIN、S→+5V、G→100k→GND + BZX84C10；SMBJ5.0CA；CN1 16pin 标准脚位。
+- DAC8568ICPWR：AVDD=+5V、CLR#=+3V3、VREF=10µF；C 档满量程 0~5V；内部基准默认关，
+  固件必须先使能（原写“固件增益设 2”不准确，是器件等级决定，非软件设置）。
+- ADS8688 ×2：REFSEL#=GND（内部 4.096V）、DAISY=GND（单机）、RST#=+3V3、
+  REFIO=10µF、AUX 接 GND、DNC 悬空；±10.24V 量程覆盖 0/10V；内部二阶 15kHz LPF。
+- TLC5947：VCC=+3V3、LED 阳极 +5VLED、输出灌电流到 LED 阴极；输出耐压 30V；
+  IREF 22k≈2.2mA/路；EP/GND 接地；SOUT 悬空。
+- LED 极性正确：pin1=K(阴极)→TLC OUT，pin2=A(阳极)→+5VLED（符号引脚名 A/K 已核对）。
+- CD74HC4067：引脚定义与手册一致（COMMON=1；S0/S1/S2/S3=10/11/14/13；GND=12；
+  E#=15 接地使能；VCC=24）；VCC=3V3、电位器 0~3.3V。
+- OPA4171 ×2：±12V 在 36V 内；同相×2（Rf=Rg=10k 0.1%）；输入 0~5V 在共模范围；
+  输出 0~10V 在摆幅内；输出 1k + BAT54S(GND/+12V)。
+- 去耦：每颗 IC 均有 10µF+100nF；运放 ±12V 各有 10µF+100nF。
+- 数字侧：GPIO 映射见第十四节，四组连续 4 脚，PIO0=DAC+ADCA、PIO1=ADCB+TLC。
+- ADC 输入链：J1–J16 tip→R1–R16(1k)→A0P…B7P→ADS，BAT54S 钳 GND/+12V；
+  AIN_xGND=GND。ADC_VREF(pin35) 经 C45 100nF 到 GND。
+- 推子/旋钮：作者已实物确认推子当前接法正确（pin1=+3V3、pin2=GND、pin3→Ix）。
+  注意此封装与“pin2=动片”的常见惯例不同，后续勿按惯例“修正”。
+  旋钮 RK09K：pin1=GND、pin2=动片→Ix、pin3=+3V3。
+
+3. PCB 数据
+- 8 层叠层：L1 顶 / L2 GND1 / L3 LED / L4 GND2 / L5 模拟 / L6 3V3 / L7 5V / L8 底。
+- GND 平面 L2/L4 + 顶/底/LED/模拟层 GND 铺铜；LED 层被两块 GND 夹住。
+- 201 个器件、673 过孔、2011 段走线；电源 1.3~1.8mm、+5VLED 1.3mm、信号 0.3mm。
+- 元件面：插座/推子/旋钮在顶层（面板侧），SMD 在底层（背面）。
+- 板框：8400×4330.71 mil = 213.36×110.00mm（约 42HP）。
+
+4. 待确认/建议（不阻塞，但建议处理）
+- ADS8688 REFCAP：手册建议 10µF+1µF，现为 10µF+100nF（C3/C17），可换 1µF。
+- mux 输出无滤波电容：建议 GP28/COMMON 加 10nF，切通道后等稳定再采样。
+- TLC5947 BLANK 无上拉：上电可能随机点亮，建议 10k 上拉到 +3V3
+  （DAC SYNC#/LDAC# 可选上拉）。
+- 输出插座开关脚：现 J17–J24 pad1/pad2 接地，空载时输出经 1k 到地（约 10mA/路）；
+  日志旧说法是“悬空”，请确认是否保持接地。
+- 板宽 213mm≈42HP，与 README“20~24HP”不符，请确认。
+- DAC8568 VIH=0.625×5=3.125V，Pico 3.3V 仅 ~175mV 余量；+5V 偏高/3V3 偏低时有风险。
+- 运放输入 1k+100nF（fc≈1.6kHz、τ≈100µs）会削圆 <1ms 的 Attack；如需更快可减小 C。
+- 底层走线参考的是 L7=5V 平面（底层有 GND 铺铜+大量缝合过孔，低速可接受）；
+  如需更好回流可把与底层相邻的层改为 GND，或加强 GND 缝合。
+- 确认 3V3(19)/5V(20) 平面已在层管理里分配网络并填充（API 读不到平面图元）。
+
+5. 下一步
+- 固件：按第十四节引脚写 PIO 驱动 + 8 路包络 + knobbus 扫描。
+- 打样前：Annotate、处理第 4 节可选项、整体 DRC 与网表复核。

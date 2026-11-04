@@ -39,19 +39,25 @@ DAC:  DAC8568 (八路 16bit, 内部 2.5V 基准 = 0-5V, TSSOP-16)
 二、电源 (来自 Eurorack 16pin)
 ----------------------------------------------------------------
 CN1 (2x8 简易牛角/IDC, 标准 Doepfer 16pin 脚位):
-  1,2      -12V    (本模块不用)
+  1,2      -12V    -> 运放 V−（经 SS54 + SMBJ15CA）
   3~8      GND
-  9,10     +12V    (不用)
-  11,12    +5V     <-- 本模块用
+  9,10     +12V    -> 运放 V+（经 SS54 + SMBJ15CA）
+  11,12    +5V     -> 其余 5V
   13,14    CV bus  (不用)
   15,16    Gate bus(不用)
   红边 = -12V, 插线时红边朝 bus 上 -12V 丝印那侧。
 
 模块内部:
+  +5V_BUS (CN1 11/12) -> Q1(AO3401A) 防反接 -> +5V
   +5V  -> Pico VSYS(脚39) / DAC AVDD(3) / U19 VCC(20) / U20 VCC(20) / 5V去耦
-  +3V3 (Pico 脚36) -> 只给 OLED VCC (TFT1 脚2)
+  +5V  -> D1 SMBJ5.0CA -> GND ; C8 100µF -> GND
+  +5V  -> 不再用于输出钳位；CV/Gate 钳位改用 ±12V（见下）
+  +12V_BUS -> D3 SS54 -> +12V -> OPA4188/OPA4171 V+ ; D5 SMBJ15CA -> GND ; C9 100µF -> GND
+  -12V_BUS -> D4 SS54 -> -12V -> OPA4188/OPA4171 V− ; D6 SMBJ15CA -> GND ; C10 100µF -> GND
+  运放去耦: 每片 V+/V− 各 100nF，另加 C11/C12 10µF
+  +3V3 (Pico 脚36) -> 只给 OLED VCC (TFT1 脚2) 和总线钳位
   去耦: C1,C4 = 3V3 ; C2,C3,C5 = 5V(0.1µF) ; C6 = 5V(10µF bulk) ; C7 = DAC VREF(0.1µF)
-  DAC VREFIN/VREFOUT(8) -> C7 0.1µF -> GND
+  DAC VREFIN/VREFOUT(8) -> C7 0.1µF -> GND，并作为 CV 差分 2.5V 偏置（可拉 20mA）
   DAC LDAC#(1) -> GND ; DAC CLR#(9) -> +5V
   U19/U20 OE1#(1) & OE2#(19) -> GND ; 未用输入 A4-A8 -> GND ; 未用输出 Y4-Y8 -> GND
 
@@ -65,30 +71,47 @@ CN1 (2x8 简易牛角/IDC, 标准 Doepfer 16pin 脚位):
    74AHCT541 输入阈值 2.0V, 3.3V 可驱动, 输出 5V。只翻译数字线, 不碰模拟输出)
 
 ================================================================
-四、Gate 链 (Pico -> U20 缓冲 -> 8 个 Gate 座)
+四、Gate 链 (Pico -> U20 -> OPA4171 ×2 -> 1k -> 钳位 -> 8 个 Gate 座)
 ----------------------------------------------------------------
-  GP22 -> U20 A1(2)  -> Y1(18) -> U1  Gate 座
-  GP21 -> U20 A2(3)  -> Y2(17) -> U3  Gate 座
-  GP20 -> U20 A3(4)  -> Y3(16) -> U5  Gate 座
-  GP19 -> U20 A4(5)  -> Y4(15) -> U7  Gate 座
-  GP18 -> U20 A5(6)  -> Y5(14) -> U16 Gate 座
-  GP17 -> U20 A6(7)  -> Y6(13) -> U14 Gate 座
-  GP16 -> U20 A7(8)  -> Y7(12) -> U12 Gate 座
-  GP15 -> U20 A8(9)  -> Y8(11) -> U10 Gate 座
-  (Gate 电平 0V/5V, V-trig)
+  GP22 -> U20 A1(2)  -> Y1(18) -> OPA4171 IN+ -> OUT -> 1k -> U1  Gate 座
+  GP21 -> U20 A2(3)  -> Y2(17) -> OPA4171 IN+ -> OUT -> 1k -> U3  Gate 座
+  GP20 -> U20 A3(4)  -> Y3(16) -> OPA4171 IN+ -> OUT -> 1k -> U5  Gate 座
+  GP19 -> U20 A4(5)  -> Y4(15) -> OPA4171 IN+ -> OUT -> 1k -> U7  Gate 座
+  GP18 -> U20 A5(6)  -> Y5(14) -> OPA4171 IN+ -> OUT -> 1k -> U16 Gate 座
+  GP17 -> U20 A6(7)  -> Y6(13) -> OPA4171 IN+ -> OUT -> 1k -> U14 Gate 座
+  GP16 -> U20 A7(8)  -> Y7(12) -> OPA4171 IN+ -> OUT -> 1k -> U12 Gate 座
+  GP15 -> U20 A8(9)  -> Y8(11) -> OPA4171 IN+ -> OUT -> 1k -> U10 Gate 座
+
+  每路 OPA4171 同相 ×2：OUT -> Rf 10k -> IN−；IN− -> Rg 10k -> GND。
+  U24（第一片）单元 A/B/C/D 引脚：OUT/IN−/IN+ = 1/2/3、7/6/5、8/9/10、14/13/12；
+  第二片 OPA4171 同样接 Y5..Y8。
+  每片 V+ = pin4 = +12V，V− = pin11 = −12V，各 100nF + 10µF 到 GND。
+  每个座 Tip 另接 BAT54S 公共脚, A=GND, K=+12V 钳位。
+  (Gate 电平 0V/10V, V-trig; 输出阻抗 1k)
 
 ================================================================
-五、CV 输出 (DAC -> 8 个 CV 座)
+五、CV 输出 (DAC -> OPA4188 差分 ×2 -> 1k -> 钳位 -> 8 个 CV 座)
 ----------------------------------------------------------------
-  VOUTA(4)  -> U9  CV 座
-  VOUTB(13) -> U2  CV 座
-  VOUTC(5)  -> U11 CV 座
-  VOUTD(12) -> U4  CV 座
-  VOUTE(6)  -> U13 CV 座
-  VOUTF(11) -> U6  CV 座
-  VOUTG(7)  -> U15 CV 座
-  VOUTH(10) -> U8  CV 座
-  (0-5V, 1V/oct; 内部基准, 无需标定)
+  VOUTA(4)  -> OPA4188 -> 1k -> U9  CV 座
+  VOUTB(13) -> OPA4188 -> 1k -> U2  CV 座
+  VOUTC(5)  -> OPA4188 -> 1k -> U11 CV 座
+  VOUTD(12) -> OPA4188 -> 1k -> U4  CV 座
+  VOUTE(6)  -> OPA4188 -> 1k -> U13 CV 座
+  VOUTF(11) -> OPA4188 -> 1k -> U6  CV 座
+  VOUTG(7)  -> OPA4188 -> 1k -> U15 CV 座
+  VOUTH(10) -> OPA4188 -> 1k -> U8  CV 座
+
+  每路差分 ×2：
+    DAC VOUTx -> R1 10k -> IN+
+    IN+ -> R2 20k -> GND
+    DAC VREF 2.5V -> R3 10k -> IN−
+    IN− -> R4 20k -> OUT
+    OUT -> 1k -> 座 Tip
+    Vout = 2 × (Vin − 2.5V) = −5…+5V；DAC 2.5V 对应 0V（C4=0V）。
+  每个座 Tip 另接 BAT54S 公共脚, A=−12V, K=+12V 钳位。
+  U25（OPA4188）引脚：OUTA/INA−/INA+ = 1/2/3，OUTB/INB−/INB+ = 7/6/5，
+  OUTC/INC−/INC+ = 8/9/10，OUTD/IND−/IND+ = 14/13/12；V+ pin4，V− pin11。
+  (0-5V, 1V/oct; 内部基准, 无需标定; 输出阻抗 1k)
   注: VOUT 到座子的顺序被打乱(PCB 走线), 以"十、"总表为准。
 
 ================================================================
@@ -123,8 +146,9 @@ CN1 (2x8 简易牛角/IDC, 标准 Doepfer 16pin 脚位):
   T(Tip)   -> GP14   (数据输出)
   R(Ring)  -> GND
   S(Sleeve)-> GND
-  单向只发 (无接收需求); PIO UART, 3.3V 直连 (两端都是 Pico)。
-  发送端串 33~100Ω。 帧格式(建议): [0xAA][voice][note][gate][bend][CRC]
+  单向只发 (无接收需求); PIO UART, 3.3V (两端都是 Pico)。
+  GP14 -> 100Ω -> Tip; Tip 另接 BAT54S (A=GND, K=+3V3) 钳位。
+  帧格式(建议): [0xAA][voice][note][gate][bend][CRC]
 
 ================================================================
 九、待办 / 已知问题
@@ -157,8 +181,45 @@ CN1 (2x8 简易牛角/IDC, 标准 Doepfer 16pin 脚位):
   8   U16     U15    GP18       Y5        VOUTG    G(6)     ch8
 
   说明:
-  - Gate 走数字: Pico GPIO 经 U20(74AHCT541) 缓冲, 0V/5V V-trig。
-  - CV 走模拟: DAC8568 输出, 0-5V / 1V/oct, 内部基准无需标定。
+  - Gate 走数字: U20(74AHCT541) 0V/5V → OPA4171 ×2 → 0V/10V V-trig。
+  - CV 走模拟: DAC8568 0–5V → OPA4188 差分 ×2 → ±5V（C4=0V，1V/oct）。
   - 座子 pin1=Sleeve=GND, pin3=Tip=信号, pin2=开关脚(悬空, 不接地)。
   - 固件 midi2cv.ino 的 gatePin[]/dacCh[] 与此表一一对应。
+================================================================
+
+十一、保护电路 (v1.2, 与 EG 模块同方案)
+----------------------------------------------------------------
+原则: 电源入口粗保护 + 每个对外插孔 1k 串阻 + BAT54S 钳位。
+不装 PTC; TVS 只防浪涌/热插拔/ESD, 不防持续过压。
+
++5V 入口 (CN1 11/12):
+  +5V_BUS -> Q1 S ; Q1 D -> +5V ; Q1 G -> R18 100k -> GND
+  DZ1 BZX84C10: 阴极 -> Q1 S, 阳极 -> Q1 G (栅源钳位, 防 >12V 击穿)
+  +5V -> D1 SMBJ5.0CA -> GND
+  +5V -> C8 100µF 25V 固态 -> GND
+  Q1 = AO3401A-HXY (P-MOS), 压降约 11mV。
+
+±12V 入口 (CN1 1/2, 9/10):
+  +12V_BUS -> D3 SS54 -> +12V ; D5 SMBJ15CA -> GND ; C9 100µF -> GND
+  -12V_BUS -> D4 SS54 -> -12V ; D6 SMBJ15CA -> GND ; C10 100µF -> GND
+  运放 V+ = +12V, V− = −12V；每片 100nF，另加 C11/C12 10µF。
+
+8×CV 输出 (OPA4188 之后):
+  运放 OUT -> R 1k 0.1% -> 座 Tip
+  座 Tip -> BAT54S 公共脚 (pin2); A(pin1)=−12V; K(pin3)=+12V
+
+8×Gate 输出 (OPA4171 之后):
+  运放 OUT -> R 1k 0.1% -> 座 Tip
+  座 Tip -> BAT54S 公共脚 (pin2); A=GND; K=+12V
+
+私有总线输出:
+  GP14 -> R 100Ω (DNP, 暂不装) -> 座 Tip
+  座 Tip -> BAT54S 公共脚 (pin2); A=GND; K=+3V3
+
+说明:
+  - 输出串 1k 后输出阻抗为 1k, 符合 Eurorack 惯例。
+  - BAT54S 是共三脚双肖特基: pin1=A1, pin2=K1/A2(公共), pin3=K2。
+  - CV 为 ±5V 双极性，钳到 ±12V；Gate 为 0/10V，钳到 GND/+12V。
+  - CN1 建议由简易牛角换成带防呆缺口/键位的 16pin 牛角;
+    反插时 +12V 会落到 GND 脚, 单靠 +5V 防反接无法避免。
 ================================================================

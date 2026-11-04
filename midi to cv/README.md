@@ -10,12 +10,14 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
 > ST7789 屏幕 + 编码器通道设置 UI 已完成。当前固件：
 > `firmware/midi2cv_20261025_v33_no_random.uf2`。CPU 420MHz（PLL 校验，失败回退 125MHz），
 > 屏幕 SCLK 52.5MHz。右半 5–8 组、私有总线和校准仍待做。
+> 下一版输出级按 VCV Rack 标准设计：**CV ±5V（C4=0V）/ Gate 0/10V**，
+> 用 2× OPA4188 + 2× OPA4171；固件和 VCV 插件待同步。
 
 ## 功能
 
 - 8 个声部，每个声部独立 MIDI 通道（1..16，保存在 EEPROM）
-- CV 固定 **1V/oct**；满量程可选 **1V / 2V / 5V**（对应 1/2/5 个八度，
-  同 Korg SQ-1 的 CV RANGE），超出量程封顶；Gate 极性 **+ / -** 可设置
+- CV 固定 **1V/oct**；当前固件满量程 1/2/5V（同 Korg SQ-1），
+  下一版硬件按 VCV Rack 标准改为 **±5V**（C4=0V，10 个八度）；Gate 极性 **+ / -** 可设置
 - ST7789 240×240 单列可滚动 UI：
   - MIDI 模式：V1–V8、GATE、V/OCT，共 10 行；通道行有蓝色通道条和 gate 指示灯
   - Clock 模式（IO24 短按）：组1–4 八个插孔=C1–C8，组5–8 仍是 MIDI V5–V8
@@ -46,6 +48,16 @@ RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 
 
 DAC：DAC8568（或 AD5668），32bit SPI 帧，MSB first。板上 `~LDAC` 硬接 GND，`~CLR`
 接 5V。74AHCT541 负责 SPI 电平转换和 Gate 缓冲。
+
+输出级（v1.2 设计）：DAC 0–5V → OPA4188 差分 ×2（R1=R3=10k、R2=R4=20k，
+VREF=2.5V 取自 DAC）→ **−5…+5V**；U20 的 0/5V → OPA4171 ×2（Rf=Rg=10k）→ **0/10V**。
+运放用 ±12V，CV 输出串 1k，Gate 输出串 1k。
+
+保护（v1.2 设计，与 EG 模块同方案，下一版 PCB 落地，当前板未装）：
++5V 经 P-MOS `AO3401A` 防反接（栅极 100k 到 GND、`BZX84C10` 栅源钳位），
+`SMBJ5.0CA` TVS 到 GND，100µF 固态储能；±12V 经 `SS54` + `SMBJ15CA` + 100µF；
+8×CV、8×Gate 输出各串 1k，CV 用 `BAT54S` 钳到 −12V/+12V，Gate 钳到 GND/+12V；
+私有总线串 100Ω（暂不装）并钳到 GND/+3V3。16pin 座建议用带防呆缺口的牛角。
 
 ## 输出映射
 
@@ -118,13 +130,16 @@ of each voice.
 > soldered and verified, and the ST7789 + encoder channel UI is implemented. Current
 > firmware: `firmware/midi2cv_20261025_v33_no_random.uf2`. CPU runs at 420 MHz (PLL/source verified,
 > falls back to 125 MHz); display SCLK is 52.5 MHz. Groups 5–8, the private bus and
-> calibration are still pending.
+> calibration are still pending. The next output stage follows the VCV Rack standard:
+> **CV ±5V (C4=0V) / Gate 0/10V**, with 2× OPA4188 + 2× OPA4171; firmware and the
+> VCV plugin still need to be synced.
 
 ## Features
 
 - 8 voices, each with its own MIDI channel (1..16, stored in EEPROM)
-- CV is fixed **1V/oct**; full-scale is selectable **1V / 2V / 5V** (1/2/5 octaves,
-  like the Korg SQ-1 CV RANGE), and notes above the range clamp; gate polarity **+ / -**
+- CV is fixed **1V/oct**; the current firmware uses 1/2/5 V full-scale (Korg SQ-1 style),
+  while the next hardware revision follows the VCV Rack standard: **±5V** (C4=0V,
+  10 octaves); gate polarity **+ / -**
 - ST7789 240x240 single-column scrolling UI:
   - MIDI mode: V1–V8, GATE, V/OCT (10 rows); channel rows have a blue bar and gate LED
   - Clock mode (IO24): groups 1–4's eight jacks = C1–C8,
@@ -161,6 +176,17 @@ of each voice.
 
 DAC: DAC8568 (or AD5668), 32-bit SPI frame, MSB first. The board hard-wires `~LDAC` to GND
 and `~CLR` to 5 V. A 74AHCT541 handles SPI level shifting and gate buffering.
+
+Output stage (v1.2 design): DAC 0–5 V → OPA4188 difference amp ×2 (R1=R3=10k, R2=R4=20k,
+2.5 V VREF from the DAC) → **−5…+5 V**; U20's 0/5 V → OPA4171 ×2 (Rf=Rg=10k) → **0/10 V**.
+The op-amps run on ±12 V; each CV/Gate output has a 1k series resistor.
+
+Protection (v1.2 design, same scheme as the EG module, to be added in the next PCB revision;
+not fitted on the current board): +5V goes through a P-MOS `AO3401A` reverse-polarity
+protector (100k gate resistor, `BZX84C10` gate-source clamp), an `SMBJ5.0CA` TVS to GND and a
+100µF solid bulk cap; ±12V uses `SS54` + `SMBJ15CA` + 100µF; CV clamps to −12V/+12V and Gate
+to GND/+12V with `BAT54S`; the private bus has 100Ω series (not fitted) and a clamp to GND/+3V3.
+Use a keyed 16-pin header.
 
 ## Output mapping
 

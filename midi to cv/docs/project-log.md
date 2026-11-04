@@ -127,6 +127,8 @@
   3V3 = Pico 3V3(36) + OLED VCC(2)/CSF(9) + C1/C4；GND 全覆盖（含 DAC LDAC#(1)、两片 541 的 OE）。
   **均正确**。
 ### 待办
+- [ ] **保护电路落地（v34 方案：Q1 AO3401A + BZX84C10 + SMBJ5.0CA + 100µF；8×CV/8×Gate 串 1k + BAT54S；总线 100Ω + BAT54S）**。
+- [ ] **CN1 换带防呆缺口/键位的 16pin 牛角**（防整条排线反插）。
 - [ ] **私有总线(PIO UART, GP14)**。
 - [ ] 右半 5–8 组 CV/Gate 焊接与验证。
 - [ ] V/oct（1/2/5/8）和 Gate 极性 UI（第二页）。
@@ -375,7 +377,73 @@
   - 编码器恢复 GPIO 中断；推屏超时/abort 保护保留。
   - 已刷入，固件 `midi2cv_20261025_v28_vcv_engine.uf2`。
 
-- **2026-10-25 v29（场地按屏幕比例）**：\n  - 按用户要求，场地尺寸不再用 VCV 的 620×200，改回屏幕比例 **240×222**；\n    只改 RandomWorld.h 的 ieldW/fieldH 两个常量，物理/碰撞算法不动。\n  - 显示层去掉缩放（kx=ky=kr=1），直接按 240×222 画。\n  - 已刷入，固件 midi2cv_20261025_v29_vcv_engine_screenfield.uf2。\n\n- **2026-10-25 v30（长时间卡死/看门狗复位的根因）**：\n  - VCV 原版引擎每 16ms 在 updateWaves() 里新建 std::vector<PendingWave>、\n    std::vector<const Segment*> hits、std::vector<float> chosen；每个 Wave 还带\n    std::vector<int> hitUids，enforceTypePresence() 也每次新建 vector。\n    在 PC 上没问题，但 RP2040 上会持续 malloc/free，玩几分钟后堆碎片/分配失败，\n    主循环卡住 → 8s 看门狗复位。\n  - 只改内存管理、不改物理：\n    - PendingWave[32]、hits[128]、chosen[128]、candidates[32]、missing[3] 固定数组\n    - Wave::hitUids 改成 std::array<int,32> + hitCount\n    - 构造时预留 balls/fields/waves/events/boosters/sparks/links/segments/boundary\n  - 碰撞、音高、音阶、波形、子波规则都没有改；场地仍是 240×222。\n  - 已刷入，固件 midi2cv_20261025_v30_vcv_nomalloc.uf2。\n\n- **2026-10-25 v31（串口定位完成，修复后删除串口）**：\n  - 诊断固件在 RAM/看门狗 scratch 里记录阶段；两次复位分别落在：\n    - lastStage=8 → World::update()\n    - lastStage=11 → sApplySettings()\n  - 原因 1：uildBoundary() 每次 FIELD/SHAPE 改动都新建 std::vector<V2>，\n    ebuildScaleTable()/各个 vector 也反复扩容；RP2040 堆碎片后卡在 malloc/设置应用。\n    修复：uildBoundary 改固定 std::array<V2,128>；所有 vector 构造时预留容量。\n  - 原因 2：World::update() 的球体子步循环用速度算 steps，速度异常/NaN 时\n    steps 会变成天文数字，循环 8 秒触发看门狗。\n    修复：速度/坐标/半径 NaN 归位、单球速度上限、allSpeed 校验、steps 限制 1–64。\n  - 画圆/画线加 finite 检查和半径上限，避免异常几何把 CPU 拖死。\n  - 串口诊断、心跳、worldStage、串口命令全部删除；最终固件无 Serial 输出。\n  - 最终固件 midi2cv_20261025_v31_vcv_final.uf2。\n\n- **2026-10-25 v32（碰撞范围圈硬上限）**：\n  - World::addField() 的半径加硬上限：范围圈面积不超过整个场地面积的 **1/16**，\n    即 adius <= sqrt(fieldW*fieldH/(16*pi))，240×222 场地约 **32.6px**。\n  - 直接锁死所有碰撞生成的范围圈（视觉和影响半径都受此上限），大幅降低大面积 alpha 混合开销。\n  - 已刷入，固件 midi2cv_20261025_v32_fieldcap.uf2。\n\n- **2026-10-25 v33（删除 RandomSynth / 小球功能）**：\n  - 按用户要求彻底移除 Random 模式：删除 RandomWorld.cpp/h、所有 rs*/UI_RS_* 逻辑、\n    IO23/长按 IO24 入口、Random 参数/EEPROM 字段的使用部分（Cfg 结构保留以兼容 EEPROM）。\n  - 只保留 MIDI 模式与 Clock 模式；IO24 短按仍切换 MIDI/CLOCK。\n  - 代码量从 ~122KB 降到 ~91KB，RAM 从 149KB 降到 134KB。\n  - 已刷入，固件 midi2cv_20261025_v33_no_random.uf2。\n\n## 6. 当前状态（2026-10-23）
+- **2026-10-25 v29（场地按屏幕比例）**：
+  - 按用户要求，场地尺寸不再用 VCV 的 620×200，改回屏幕比例 **240×222**；
+    只改 RandomWorld.h 的 fieldW/fieldH 两个常量，物理/碰撞算法不动。
+  - 显示层去掉缩放（kx=ky=kr=1），直接按 240×222 画。
+  - 已刷入，固件 midi2cv_20261025_v29_vcv_engine_screenfield.uf2。
+
+- **2026-10-25 v30（长时间卡死/看门狗复位的根因）**：
+  - VCV 原版引擎每 16ms 在 updateWaves() 里新建 std::vector<PendingWave>、
+    std::vector<const Segment*> hits、std::vector<float> chosen；每个 Wave 还带
+    std::vector<int> hitUids，enforceTypePresence() 也每次新建 vector。
+    在 PC 上没问题，但 RP2040 上会持续 malloc/free，玩几分钟后堆碎片/分配失败，
+    主循环卡住 → 8s 看门狗复位。
+  - 只改内存管理、不改物理：
+    - PendingWave[32]、hits[128]、chosen[128]、candidates[32]、missing[3] 固定数组
+    - Wave::hitUids 改成 std::array<int,32> + hitCount
+    - 构造时预留 balls/fields/waves/events/boosters/sparks/links/segments/boundary
+  - 碰撞、音高、音阶、波形、子波规则都没有改；场地仍是 240×222。
+  - 已刷入，固件 midi2cv_20261025_v30_vcv_nomalloc.uf2。
+
+- **2026-10-25 v31（串口定位完成，修复后删除串口）**：
+  - 诊断固件在 RAM/看门狗 scratch 里记录阶段；两次复位分别落在：
+    - lastStage=8 → World::update()
+    - lastStage=11 → applySettings()
+  - 原因 1：buildBoundary() 每次 FIELD/SHAPE 改动都新建 std::vector<V2>，
+    rebuildScaleTable()/各个 vector 也反复扩容；RP2040 堆碎片后卡在 malloc/设置应用。
+    修复：buildBoundary 改固定 std::array<V2,128>；所有 vector 构造时预留容量。
+  - 原因 2：World::update() 的球体子步循环用速度算 steps，速度异常/NaN 时
+    steps 会变成天文数字，循环 8 秒触发看门狗。
+    修复：速度/坐标/半径 NaN 归位、单球速度上限、ballSpeed 校验、steps 限制 1–64。
+  - 画圆/画线加 finite 检查和半径上限，避免异常几何把 CPU 拖死。
+  - 串口诊断、心跳、worldStage、串口命令全部删除；最终固件无 Serial 输出。
+  - 最终固件 midi2cv_20261025_v31_vcv_final.uf2。
+
+- **2026-10-25 v32（碰撞范围圈硬上限）**：
+  - World::addField() 的半径加硬上限：范围圈面积不超过整个场地面积的 **1/16**，
+    即 radius <= sqrt(fieldW*fieldH/(16*pi))，240×222 场地约 **32.6px**。
+  - 直接锁死所有碰撞生成的范围圈（视觉和影响半径都受此上限），大幅降低大面积 alpha 混合开销。
+  - 已刷入，固件 midi2cv_20261025_v32_fieldcap.uf2。
+
+- **2026-10-25 v33（删除 RandomSynth / 小球功能）**：
+  - 按用户要求彻底移除 Random 模式：删除 RandomWorld.cpp/h、所有 rs*/UI_RS_* 逻辑、
+    IO23/长按 IO24 入口、Random 参数/EEPROM 字段的使用部分（Cfg 结构保留以兼容 EEPROM）。
+  - 只保留 MIDI 模式与 Clock 模式；IO24 短按仍切换 MIDI/CLOCK。
+  - 代码量从 ~122KB 降到 ~91KB，RAM 从 149KB 降到 134KB。
+  - 已刷入，固件 midi2cv_20261025_v33_no_random.uf2。
+
+- **2026-10-30 v34（保护电路：按 EG 模块同方案，仅文档/BOM）**：
+  - 不改现有 EDA/已打样板；把保护方案写进 BOM、接线表和 README，供下一次改板/新版本使用。器件沿用 EG 模块已验证的一套。
+  - **+5V 入口**：Q1 AO3401A-HXY（D→输入、S→负载、G→100k→GND）+ DZ1 BZX84C10（阴极→S）栅源钳位 + D1 SMBJ5.0CA 到 GND + C8 100µF 固态。压降约 11mV。模块只用 +5V，不涉及 ±12V 的 SS54/SMBJ15CA。
+  - **8×CV 输出**：DAC VOUT → 1k 1% → 座 Tip → BAT54S（A=GND、K=+5V）。
+  - **8×Gate 输出**：U20 Y → 1k 1% → 座 Tip → BAT54S（A=GND、K=+5V）。
+  - **私有总线**：GP14 → 100Ω → Tip → BAT54S（A=GND、K=+3V3）。
+  - 合计新增：AO3401A×1、BZX84C10×1、SMBJ5.0CA×1、BAT54S×17、1k×16、100Ω×1、100k×1、100µF×1。
+  - 注意：反插 16pin 时 +12V 仍会落到模块 GND 脚，+5V 防反接挡不住；建议 CN1 改用带防呆缺口/键位的牛角座。输出 1k 串阻使输出阻抗为 1k；钳到 +5V 的瞬态电流由 C8 和板上负载吸收，Q1 不会倒灌总线。
+
+- **2026-10-30 v35（按 VCV Rack 标准定 CV/Gate 输出级；仅文档，EDA 未改）**：
+  - 查 VCV Rack 官方 Voltage Standards：信号典型 **10Vpp**；音频 **±5V**；CV 调制 **0–10V（单极性）或 ±5V（双极性）**；**Gate 有效 +10V**（Trigger +10V / 1ms）；输出不超过 ±12V；**1V/oct，C4（MIDI 60）= 0V**。
+  - 因此取消之前的 ±10V 方案（20Vpp，超出 VCV 标准）。
+  - **CV**：2× OPA4188（四路/片），±12V，差分 ×2。R1=R3=10k 0.1%，R2=R4=20k 0.1%，VREF 直接取 DAC8568 的 VREF（2.5V，可拉 20mA，不需要缓冲）。Vout = 2×(Vin−2.5) = **−5…+5V**；DAC 2.5V 对应 0V，C4=0V。输出 1k → 座 → BAT54S（A=−12V，K=+12V）。
+  - **Gate**：2× OPA4171（四路/片），±12V，同相 ×2。Rf=Rg=10k，U20 的 0/5V → **0/10V**。输出 1k → 座 → BAT54S（A=GND，K=+12V）。
+  - **电源**：±12V 从 16pin 取，按 EG 加 SS54 + SMBJ15CA + 100µF；v34 的“只用 +5V”作废；+5V 仍保留 Q1/SMBJ5.0CA。
+  - **买料修正**：40.2k 取消，改 20k。MIDI：10k 0.1%×32、20k 0.1%×16、1k 0.1%×16、100k×1；100Ω 总线串阻暂不装；22k 已有（EG 用）。
+  - **EDA 现状（只读，未改）**：U24=OPA4171（4 单元已放、未接线）、U25=OPA4188（已放、未接线）。DAC VOUT 仍直连 CV 座（U2/U4/U6/U8/U9/U11/U13/U15），U20 的 20Y1..Y8 仍直连 Gate 座（U1/U3/U5/U7/U10/U12/U14/U16）；接运放时要先断开这些直连线。
+  - **固件待改**：NOTE0 从 24 改为 60（C4=0V）；DAC 码改为 32768 + (note−60)×1092（1 半音≈1092 码，1V≈13107 码），输出允许负值；V/OCT 按 VCV 1V/oct 重新定义。
+  - **VCV 插件待改**：`cvVoltage()` 去掉 0..5V 钳位，改 ±5V（饱和到 ±10V）；Gate 5V→10V；右键菜单加 CV 范围 / Gate 电平。
+
+## 6. 当前状态（2026-10-30）
 - 当前固件：`firmware\midi2cv_20261025_v33_no_random.uf2`
   - 16MB flash + `boot2_w25q128jvxq_4` + TinyUSB
   - CPU **420MHz**（PLL 校验通过；失败回退 125MHz）
@@ -390,14 +458,17 @@
 - Random 子波：只有初始波在墙上生成 1 个子波；子波不再继续
 - VCV Library #990 等待审核；README/源码/固件已上传，issue commit `4b0df0d`
 - 未验证：右半组5–8、EEPROM 断电保持、DAC 精度、私有总线
+- 保护电路：v34 方案已写入 BOM/接线表/README，当前板未装，下一版 PCB 落地
+- 输出级：v35 定 **CV ±5V / Gate 0/10V**（VCV 标准）；运放 U24/U25 只在 EDA 里放置、未接线；固件和 VCV 插件待同步
+- 注：Random 模式已在 v33 删除，上面 Random 条目仅作历史记录
 - 超频结论：420/432 稳定，436+ 不稳定；500 从未真正跑起来
 - 屏幕结论：52.5MHz 稳定；62.5MHz 小数分频动态刷新红屏，70MHz+ 颜色错误
 
 ## 7. 下次继续
-1. 焊右半 5–8 组，逐路测 CV/Gate
-2. 断电重启，确认通道/clock 设置能从 EEPROM 恢复
-3. Random 模式实机验证：场地绘制、输出映射、按键/编码器、EEPROM 恢复
-4. 私有总线（GP14，PIO UART，帧格式见 `vcv-rack/src/PrivateBus.hpp`）
-5. 快速转动若跳步，加 **200µs** 编码器消抖（不要 1ms）
-6. 需要时再做 DAC 输出精度校准
+1. 接 U24（OPA4171，Gate ×2）和 U25（OPA4188，CV 差分 ×2）：先断开 DAC→CV 座、U20→Gate 座的原来的直连线
+2. 固件：NOTE0 改成 60（C4=0V），DAC 码加 32768 偏置，CV 允许负值；VCV 插件同步 ±5V CV / 10V Gate
+3. 焊右半 5–8 组，逐路测 CV/Gate
+4. 断电重启，确认通道/clock 设置能从 EEPROM 恢复
+5. 私有总线（GP14，PIO UART，帧格式见 `vcv-rack/src/PrivateBus.hpp`）
+6. 需要时再做 DAC 输出精度校准（每通道两点校准）
 7. `firmware\oc_test` 是超频验证工具，不参与主固件编译
