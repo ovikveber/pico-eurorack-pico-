@@ -6,12 +6,14 @@
 RP2040 USB-MIDI 转 8 路 CV/Gate 转换器。一颗 DAC8568 提供 8 路 16bit 输出，使用内部
 2.5V 基准（0-5V）；8 路 Gate 经过缓冲，跟随每个声部的音符堆栈。
 
-> **状态：开发中。** PCB 已于 2026-10-22 到货；左半 4 组 CV/Gate 已焊并验证，
+> **状态：不可用（改造中）。** PCB 已于 2026-10-22 到货；左半 4 组 CV/Gate 已焊并验证，
 > ST7789 屏幕 + 编码器通道设置 UI 已完成。当前固件：
 > `firmware/midi2cv_20261025_v33_no_random.uf2`。CPU 420MHz（PLL 校验，失败回退 125MHz），
-> 屏幕 SCLK 52.5MHz。右半 5–8 组、私有总线和校准仍待做。
-> 下一版输出级按 VCV Rack 标准设计：**CV ±5V（C4=0V）/ Gate 0/10V**，
-> 用 2× OPA4188 + 2× OPA4171；固件和 VCV 插件待同步。
+> 屏幕 SCLK 52.5MHz。
+>
+> **当前不可用**：DAC 直出只有 0–5V，CV 不满足 VCV 的 **10Vpp** 要求。正在加运放改输出级
+> （**CV ±5V（C4=0V）/ Gate 0–10V**，2× OPA4188 + 2× OPA4171）；改完并校准前不要接系统。
+> 右半 5–8 组、私有总线和校准仍待做，固件和 VCV 插件待同步。
 
 ## 功能
 
@@ -109,6 +111,7 @@ firmware/screen_test_20261022_encoder.uf2  屏幕测试固件
 hardware/                      BOM、Gerber、板子照片
 docs/wiring-table.txt          引脚和接口表
 docs/project-log.md            开发日志
+vcv-rack/                      VCV Rack 插件（待同步 ±5V CV / 10V Gate）
 ```
 
 ## 协议
@@ -126,13 +129,16 @@ An RP2040 USB-MIDI to 8x CV/Gate converter. A single DAC8568 provides eight 16-b
 from its internal 2.5 V reference (0-5 V); eight buffered gate outputs follow the note stack
 of each voice.
 
-> **Status: in development.** The PCB arrived on 2026-10-22; the left 4 CV/Gate groups are
-> soldered and verified, and the ST7789 + encoder channel UI is implemented. Current
-> firmware: `firmware/midi2cv_20261025_v33_no_random.uf2`. CPU runs at 420 MHz (PLL/source verified,
-> falls back to 125 MHz); display SCLK is 52.5 MHz. Groups 5–8, the private bus and
-> calibration are still pending. The next output stage follows the VCV Rack standard:
-> **CV ±5V (C4=0V) / Gate 0/10V**, with 2× OPA4188 + 2× OPA4171; firmware and the
-> VCV plugin still need to be synced.
+> **Status: not usable (being modified).** The PCB arrived on 2026-10-22; the left 4 CV/Gate
+> groups are soldered and verified, and the ST7789 + encoder channel UI is implemented.
+> Current firmware: `firmware/midi2cv_20261025_v33_no_random.uf2`. CPU runs at 420 MHz
+> (PLL/source verified, falls back to 125 MHz); display SCLK is 52.5 MHz.
+>
+> **Not usable yet**: the DAC output is only 0–5 V, so CV does not meet the VCV **10 Vpp**
+> requirement. Op-amps are being added for the output stage (**CV ±5V (C4=0V) / Gate 0–10V**,
+> 2× OPA4188 + 2× OPA4171); do not connect it to a system until this is done and calibrated.
+> Groups 5–8, the private bus and calibration are still pending, and the firmware and VCV
+> plugin still need to be synced.
 
 ## Features
 

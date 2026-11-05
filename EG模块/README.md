@@ -3,7 +3,7 @@
 多路包络发生器：**2× ADSR + 2× AR + 4× Decay**，每一路都有独立的 **Gate** 和
 **Retrigger** 输入，8 路 **0~10V** CV 输出。基于 Raspberry Pi Pico 1（RP2040）。
 
-> **状态：原理图 + PCB 已全板复核（2026-11-04，对照数据手册），未打样。**
+> **状态：已打样，板子在途（2026-11-04 完成原理图 + PCB 全板复核）。**
 > 电源/输入/输出/模拟控制、Pico 数字侧（SPI/选择线）均已接好；PCB 已布线并通过 DRC
 > （位号提示除外）。方案、BOM 已定；剩余为少量可选项与固件。
 > 设计细节和待办见 [`项目日志.txt`](项目日志.txt)，物料见 [`BOM-物料清单.txt`](BOM-物料清单.txt)。
@@ -111,13 +111,14 @@ CS/XLAT/BLANK/LDAC 用普通 GPIO。共 21 根（16 SPI + mux 5）。
 - [x] Pico 数字侧接线（GPIO 分配见上表，GP28 经 R51 接 knobbus）
 - [x] ADC_VREF（pin35）加 100nF 到 GND
 - [x] 全板复核（原理图 + PCB，对照数据手册，见日志第十五节）
+- [x] PCB 布局（8 层：顶/GND/LED/GND/运放/3V3/5V/底；模拟与数字分区，DRC 通过）
+- [x] 打样（板子在途）
 - [ ] 确认板宽：现板框 213mm≈42HP，文档写 20~24HP（需统一）
 - [ ] 最终面板宽度/推子行程（20HP vs 24HP）
-- [ ] PCB 布局（8 层：顶/GND/LED/GND/运放/3V3/5V/底；模拟与数字分区）
 - [ ] 可选优化：ADS8688 REFCAP C3/C17→1µF；mux 输出加 10nF；TLC BLANK 加 10k 上拉；确认输出插座开关脚是否接地
 - [ ] 固件：ADS8688 驱动、TLC5947 驱动、8 路包络引擎、参数映射、PIO 驱动
 - [ ] 校准：DAC 0~10V、LED gamma、ADS8688 阈值
-- [ ] 打样与测试计划
+- [ ] 到板后测试（电压/输入阈值/输出/温升）
 - [ ] 已决定：不装按钮
 
 ## 协议
@@ -133,4 +134,4 @@ A multi-envelope generator for Eurorack: **2× ADSR + 2× AR + 4× Decay**, each
 Gate and Retrigger input, and 8× **0–10V** CV outputs. Based on a Raspberry Pi Pico 1
 (RP2040), with a DAC8568 (8-ch 16-bit SPI DAC), 2× ADS8688 (8+8 gate/retrig inputs),
 a CD74HC4067 (16 analog controls: 8 sliders + 8 knobs) and a TLC5947 (24 LEDs).
-No VCA on board; this is a pure CV/envelope module. Status: design draft, not built.
+No VCA on board; this is a pure CV/envelope module. Status: schematic/PCB reviewed with DRC pass, board ordered (in transit); firmware pending.
