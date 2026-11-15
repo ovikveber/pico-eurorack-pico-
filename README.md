@@ -17,6 +17,7 @@
 | [`EG模块`](EG模块/README.md) | 板子在途 | 2× ADSR + 2× AR + 4× Decay 包络发生器，8× 0~10V CV，Gate/Retrig 输入；原理图+PCB 复核 DRC 通过，已打样，等待到板；待固件 |
 | [`OV-JP8000`](OV-JP8000/README.md) | 可用 | 基于 OV-303 硬件的 JP-8000 风格 SuperSaw 合成器，8 声部、双 ADSR，当前 v37 |
 | [`可编程VCO`](可编程vco模块/README.md) | 设计中 | 8 声部 SuperSaw + Audio/CV 调制矩阵，方案冻结，未画板 |
+| [`VCA模块`](VCA模块/README.md) | 设计中 | 2 路纯模拟 VCA，1× LM13700M-TD，基于 Benjiao MiniVCA；每路 1× Level + CV（不插 CV 无声）+ CV LED；未画板 |
 
 `pico303` 只支持 RP2350（实测 RP2040 无法运行）；原版 303 复刻的电路、外壳和仿真资料
 不在这个仓库里。
@@ -65,6 +66,11 @@ EG模块/
 
 可编程vco模块/
   设计决定日志.md                需求、架构、矩阵、待办（主要文档）
+  README.md
+
+VCA模块/
+  设计决定日志.md                需求、架构、计算、待办（主要文档）
+  BOM-物料清单.txt               物料清单
   README.md
 
 README.md
@@ -133,6 +139,7 @@ the firmware, hardware design files and the documentation needed to build and mo
 | [`EG module`](EG模块/README.md) | board in transit | 2× ADSR + 2× AR + 4× Decay envelope generator, 8× 0–10 V CV outputs, gate/retrig inputs; schematic/PCB reviewed with DRC pass, board ordered and in transit; firmware pending |
 | [`OV-JP8000`](OV-JP8000/README.md) | working | JP-8000-style SuperSaw synth on OV-303 hardware, 8 voices, dual ADSR, currently v37 |
 | [`programmable VCO`](可编程vco模块/README.md) | design | 8-voice SuperSaw + audio/CV modulation matrix, design frozen, PCB not started |
+| [`VCA module`](VCA模块/README.md) | design | 2-channel pure-analog VCA, 1× LM13700M-TD, based on Benjiao MiniVCA; one Level + CV (no CV = silent) + CV LED per channel; PCB not started |
 
 `pico303` only supports RP2350 (RP2040 was tested and does not run). The circuit, case and
 simulation files of the original 303 replica are not part of this repository.
@@ -181,6 +188,11 @@ EG模块/                          (EG module)
 
 可编程vco模块/                   (programmable VCO)
   设计决定日志.md                requirements, architecture, matrix, to-do (main document)
+  README.md
+
+VCA模块/                          (VCA module)
+  设计决定日志.md                requirements, architecture, calculations, to-do (main document)
+  BOM-物料清单.txt               bill of materials
   README.md
 
 README.md
