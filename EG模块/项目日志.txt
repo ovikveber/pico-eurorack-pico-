@@ -509,3 +509,233 @@ EG模块 项目日志
 - 现象（固件写 0 却全亮 + 上电闪三下后常亮）指向：TLC 实际收到全 1，即 SIN 被外部拉高（补焊短路到 3V3）。
 - 新增引脚电平回读（S: SIN/SCLK/BLANK/XLAT 焊盘电平）诊断，待 USB 恢复后烧入确认。
 - 待用户量：运行时 TLC pin4(SIN)/GP0 是否被拉死在 ~3.3V；是则清理 GP0/pin4 的连锡。
+
+=== 2026-11-18 新板 DAC/运放输出满值测试 ===
+- 新焊一块板（除电位器/推子/音频插座外全部焊好）。
+- 新增 firmware/eg_out_test/eg_out_test.ino：仅初始化 DAC8568，不驱动 LED/ADS/mux。
+- DAC：先写 0，使能内部基准(0x08000001)，再 8 路全写 65535（满值）-> DAC 5V，运放x2 -> 10V。
+- 编译通过（54.5KB flash / 8.9KB RAM），UF2 已放桌面 eg_out_test.uf2，供上板测 8 路输出。
+- 注意：构建路径含中文会导致 ld.exe 打不开链接脚本，需在 ASCII 临时目录构建后拷 UF2。
+
+=== 2026-11-18 eg_out_test 重写（DAC 输出可靠性）===
+- 现象：8 路输出有 0、有 0.3V，偶发；换 DAC/运放后无改善。
+- 复核数据手册控制矩阵：帧格式本身正确；问题在时序与 LDAC。
+- 改动：
+  * 命令由 0000(写缓冲,靠 LDAC 锁存) 改为 0011(写并立即更新各自 DAC 寄存器)，不再依赖 LDAC 脉冲。
+  * 每 bit/每帧加延时（SCLK 边沿 1us、帧间 SYNC 高 3us），满足帧间隔。
+  * 上电先软件复位 0x07000000，再 0x08000001 使能内部基准并等 50ms；循环周期重使能基准。
+  * 8 路 code=65535 -> DAC 5V -> 运放 x2 = 10V。
+- 待实测：若仍异常，量 DAC pin3 AVDD=5V、pin8 VREF=2.5V；并确认板由 16pin PSU 供电（USB 只供 Pico/3V3，不供 DAC 的 +5V 与运放 ±12V）。
+
+=== 2026-11-18 DAC 输出排查（暂停，待测）===
+- 现象：满值测试时 8 路输出不一致：约 2.5V / 1.29V / 0V（经运放后）。换 DAC 与运放无效。
+- 分析：基准若未使能应全 ~0；既有多档非 0 值，更可能是 SPI 数据位错位/丢位（2.5V≈满值1/4、1.29V≈1/8），逐通道累积。
+- eg_out_test 已重写：软件复位 -> 使能内部基准等50ms -> 命令 0011(写并立即更新各通道,不靠 LDAC) -> 加位/帧延时。UF2 在桌面。
+- 新增 firmware/eg_dac_diag：8 路输出已知不同档位，逐孔量电压以定位（基准/位错位/单路硬件）。
+  代码: A=0, B=65535(满,期望10V), C=49152(7.5V), D=32768(5V), E=16384(2.5V), F=8192(1.25V), G=4096(0.625V), H=2048(0.31V)。
+  SCLK 放到 5us 排除速度因素。UF2: 桌面 eg_dac_diag.uf2。
+- 待办：量 8 个输出孔电压回报；明确测量点在运放后(插座/焊盘)还是 DAC VOUT 脚。
+  并确认板由 16pin PSU 供电（USB 不供 DAC +5V 与运放 ±12V）。
+- 未决：DAC8568 逻辑 VIH=0.625×5=3.125V，Pico 3.3V 余量仅 ~175mV；新板若走线长可能位错，必要时加电平转换/降低 AVDD 或核查。
+- 状态：暂停，明天按 eg_dac_diag 的 8 个读数继续。
+
+=== 2026-11-18 新增 Pico 焊点自检固件 eg_pin_test ===
+- 怀疑 Pico 焊接不良（DAC 输出不一致/ADCA 读 0/LED 连线异常，多处指向焊点）。
+- 新增 firmware/eg_pin_test/eg_pin_test.ino（已编译 55.1KB，UF2 放桌面 eg_pin_test.uf2）。
+- 功能：GP0-3、GP6-22、GP26/GP27 全部输出高电平并保持，供万用表在
+  「Pico 引脚」与「目标芯片引脚」两端对照量电压；GP28 仅内部上拉（ADC/mux COMMON 模拟节点）。
+- 安全顺序：先把 CS#（GP7/GP11）拉高使 ADS8688 SDO 高阻，再驱动 GP9/GP13 等其余脚。
+  后级均 3.3V 逻辑或高阻输入；DAC8568 SYNC#/LDAC# 高=不选中、TLC BLANK 高=LED 关，
+  不会倒灌/损坏。若某脚已对地短路，输出高会灌约 60mA/脚 -> 需先断电量阻值。
+- 板载 LED(GP25) 0.5s 慢闪作心跳；串口 115200 每 2s 打印各焊盘真实电平
+  （先切 INPUT 再 digitalRead，读的是真实电平而非输出锁存值）。
+- 编译注意：含中文的构建路径会让 ld 打不开链接脚本，仍在 ASCII 临时目录编译后拷 UF2。
+- 待用户实测回报：每个 GPxx 在 Pico 端与芯片端是否都 ≈3.3V，定位虚焊脚。
+=== 2026-11-18 eg_pin_test 实测：GP18 被短路 ===
+- 实测（eg_pin_test，全部脚输出高）：其余 GPIO 均 ≈3.3V，GP26/GP27=3.36V，VREF=3.29V；
+  唯独 GP18 只有 0.1V。
+- GP18 = DAC8568 SYNC#（pin2）。推挽输出高却只有 0.1V => 该脚对地（低阻）短路，
+  约 50Ω 驱动 -> 60mA 级灌电流。
+- Pico 物理 pin24=GP18，紧邻 pin23=GND，极可能是 23/24 之间连锡（或对地平面）。
+- 这解释此前 DAC 现象：SYNC# 一直被拉低 => 32 位帧的 SYNC 上升沿不存在/不完整 =>
+  无有效锁存，8 路输出为随机/残值（2.5V/1.29V/0），换 DAC/运放当然无效。
+- 待办：断电后量 GP18↔GND 电阻确认（应 ≈50Ω 或更低）；放大镜查 pin23/24 连锡并清理补焊；
+  复测 eg_pin_test 确认 GP18=3.3V；再跑 eg_dac_diag 看 8 路是否正常。
+- 注意：短路未排除前不要长时间上电（该脚持续 60mA）。
+=== 2026-11-18 GP18 短路确认（电阻实测）===
+- 万用表 200Ω 档量 GP18↔GND：读数 01.8，即约 1.8Ω —— 确认金属性硬短路（正常应 >1MΩ）。
+- 已排除内部 ESD 二极管（万用表电阻档电压低，二极管不导通），1.8Ω 是真连锡/短路。
+- 定位方法：Pico 若为排母插座，拔下后分别量 (a) PCB 上 GP18 焊盘↔GND、(b) Pico 模块 pin24↔pin23；
+  两者分离即可判定短路在 Pico 还是 PCB/走线。若为直接焊接，直接放大镜查 pin23/24 与 GP18 走线。
+- 修复：助焊剂+吸锡线清桥，复测 >1MΩ；再跑 eg_pin_test 确认 GP18=3.3V，然后 eg_dac_diag。
+- 注：短路期间该脚长期 60mA，修复后需确认 pad 未退化（eg_pin_test 读回正常即可）。
+=== 2026-11-18 更正：GP18 不是短路，是开路 ===
+- 前一条“1.8Ω 硬短路”作废：用户实际用的是 200MΩ 档，示数 01.2 => 约 1.2MΩ，属正常/开路，不是短路。
+- 结论修正：GP18（DAC SYNC#）与 GND 之间没有短路；引脚驱动高却只有 0.1V，是
+  “输出没有真正送到该节点” —— 即 GP18 与 DAC pin2 之间虚焊/断线，或 RP2040 该脚输出损坏。
+- SYNC# 悬空(浮低) => 32 位帧没有 SYNC 上升沿 => 不锁存 => 8 路输出随机/残值，与之前现象一致。
+- 下一步（断电，200Ω 档）：
+  1) 量 Pico pin24(GP18) ↔ DAC8568 pin2(SYNC)，期望 <几 Ω；若是 MΩ 级 => 虚焊/断线，补焊或飞线。
+  2) 若该段通、但 Pico pin24 自身仍 0.1V => RP2040 该脚坏，飞线到备用脚(GP4/5/14/15/16)并改固件，或换 Pico。
+  3) 顺量 GP18↔GP17/GP19 应为 MΩ 级（排除相邻连锡）。
+=== 2026-11-18 定位到：GP18 ↔ DAC pin2 开路（虚焊/断线）===
+- 断电 200MΩ 档量 Pico GP18 ↔ DAC8568 pin2(SYNC#)：示数 00.9 => 约 0.9MΩ，
+  两端不连通（正常应为 <1Ω）。结合 GP18↔GND=1.2MΩ(无短路)，判定为“线路开路”。
+- 含义：SYNC# 悬空浮低，DAC 永远收不到 SYNC 上升沿 -> 帧不锁存 -> 输出随机/残值。
+- 修复顺序建议：
+  1) 先补焊 DAC pin2（TSSOP 0.65mm 细间距，最可能虚焊/翘脚），顺手补 pin1/3；
+  2) 再补焊 Pico pin24(GP18)；
+  3) 复测 GP18 ↔ DAC pin2 应 <几 Ω；若仍 MΩ 级，说明走线断，直接飞线 GP18(Pico pin24)->DAC pin2。
+- 复测通过后：eg_pin_test 应显示 GP18=3.3V，再跑 eg_dac_diag 应得到 0/10/7.5/5/2.5/1.25/0.625/0.31V 阶梯。
+- 顺带：其它 SPI 线(GP17/19/20 与 DAC pin1/16/15)也一并补焊，避免同类虚焊。
+=== 2026-11-18 GP18 复测：仍是开路（0.01V / 1.3MΩ）===
+- 复测：电压 0.01V（更接近纯浮空）、GP18↔DAC pin2 仍 1.3MΩ => 仍未连通。
+- 8 层板走线多在底层，无法沿走线探电压；直接飞线最快。
+- 判定流程（上电 + eg_pin_test）：
+  * 直接在 Pico 模块自己的 pin24 焊盘量：3.3V -> Pico 输出正常，断点在 PCB 段 -> 飞线/补焊；
+    约 0V -> RP2040 该脚输出坏 -> 换 Pico，或飞线到备用脚(GP4/5/14/15/16)改固件。
+  * 飞线：Pico pin24 -> DAC pin2，细线，注意别碰到 pin23(GND)。
+- 修复后仍按 eg_pin_test -> eg_dac_diag 复测阶梯。
+=== 2026-11-18 热风枪整体回吹后修复 ===
+- 用户用热风枪对全板回吹，GP18/DAC SYNC# 开路已修复。短路/开路问题排除。
+- 复测顺序（UF2 在桌面）：
+  1) eg_pin_test.uf2  —— 先确认全部 GPIO 焊盘恢复 3.3V（含 GP18），无新连锡；
+  2) eg_dac_diag.uf2  —— 8 路已知档位：A=0, B=10, C=7.5, D=5, E=2.5, F=1.25, G=0.625, H=0.31V；
+- 注意：量输出需插 16pin 电源（USB 只供 Pico 3V3，不供 DAC +5V / 运放 ±12V）。
+- 若阶梯正常，回到 eg_main 复测完整 EG（Gate/Retrig、LED、旋钮）。
+=== 2026-11-18 新增 test_final：8 路输出全打满 ===
+- 新增 firmware/test_final/test_final.ino（编译 54.6KB）。UF2：D:\dekstop mainstage\test_final.uf2。
+- 功能：仅 DAC8568，8 路全部写 65535 -> DAC 5V -> 运放 x2 -> 每孔 ≈10V，供万用表逐孔量。
+- 流程：软件复位 -> 全 0 -> 使能内部基准等 50ms -> 8 路满值；loop 每 200ms 重写并周期性重申基准。
+- 命令 0b0011（写并立即更新），不依赖 LDAC；SCLK/帧间 2~5us 延时。
+- 量测前提：必须插 16pin 电源（USB 不供 DAC +5V / 运放 ±12V）。
+=== 2026-11-18 test_final 实测通过 + eg_main 加固 ===
+- test_final（8 路满值）实测：8 个输出孔均 ≈9.96V（相对 10V 低 0.4%，属 DAC 基准容差 + 0.1% 电阻正常范围）。
+  => DAC -> 运放 -> 插座整条链路确认正常，之前的问题就是 GP18/SYNC# 开路。
+- eg_main 同步加固（防止重蹈“靠 LDAC 短脉冲锁存”的坑）：
+  * dacBuffer 改为命令 0b0011（写输入寄存器并立即更新该通道），不再依赖 LDAC 脉冲；移除 dacLatch 调用。
+  * dacFrame 每 bit/帧加 6 个 nop 的步进（SCLK 约数 MHz，远低于 50MHz 上限，ISR 内总耗时约 30~40µs < 167µs）。
+- 编译 60.3KB；UF2：D:\dekstop mainstage\eg_main.uf2。
+- 下一步：烧 eg_main，上电先看 24 LED 跑马/自检；串口 115200 看 A/B/G/R；插 Gate 于第 1 路看 OUTA 是否 0~10V 包络。
+=== 2026-11-18 ADS8688 通信实测（新固件 ads_comm_test）===
+- 新增 firmware/ads_comm_test/ads_comm_test.ino：只读寄存器 + 读 8 通道 + AUX，经 COM5 实测。
+- 判据：写 AUTO_SEQ_EN(0x01)=0x5A 再读回，必须回 0x5A（双向通信铁证）。
+- 结果：
+  * ADCA/Gate (GP10/11/12/13)：AUTO_SEQ=0xFF, echo=0x5A, rb=0x5A => REG-PASS，通道值正常抖动（32765/3986x）。
+  * ADCB/Retrig (GP6/7/8/9)：全部 0，echo=0x0，rb=0x0 => REG-FAIL，SDO 恒 0（无响应）。
+- 判断：ADCB 一侧 SPI 不通。最可能 GP9(SDO，Pico 物理 pin12) 紧邻 GND(pin13) 被吹桥/短路，
+  或 ADCB pin36/38/37/1 虚焊，或芯片被热风/静电损伤。
+- 待测（断电，电阻档）：
+  1) GP9↔GND：应 MΩ，若 <1Ω => 短路，清理 Pico pin12/13；
+  2) GP9↔ADCB pin36、GP7↔pin38、GP8↔pin37、GP6↔pin1：应 <几 Ω；
+  3) ADCB pin9/30(AVDD)=+5V、pin2/34(DVDD)=+3V3 上电后确认；
+  4) 若上述都通仍 FAIL => 两片 ADS8688 对调，判断故障跟随芯片还是跟随位置。
+- 备注：之前日志说“ADCA 恒 0/ADCB 正常”，现在正好反过来，说明是返修后焊点变化导致，非固件问题。
+=== 2026-11-18 结论 + 新增 env_selftest（软件 Gate 包络自检）===
+- ADS8688：ADCA/Gate 通信正常；ADCB/Retrig 芯片疑似已损坏（用户回忆焊接时“啪”一声飞起、
+  封装漏油）——典型 moisture popcorning/过热爆裂 + 可能的 ESD，需更换 ADCB。
+- GPIO 侧已确认全部 3.3V 正常，之前的故障都是焊点/芯片问题。
+- 新增 firmware/env_selftest/env_selftest.ino：不依赖任何输入，软件 Gate 驱动 8 路同步 ADSR：
+  A=1s -> D=1s -> Sustain 60% 保持 1s -> R=1s -> 空闲 1s 循环；DAC 走命令 0b0011。
+- 串口实测状态机正常（ATTACK/DECAY/SUSTAIN 6.00V/RELEASE 平滑下降）。
+- 待测：万用表/示波器看 OUTA–H，应同步 0 -> 9.96 -> 5.98 -> 0 循环（实际按 x0.996 缩放）。
+- 焊 8688 建议：芯片先 100~125°C 烘 2~4h 去潮（防 popcorning）；热风 280~300°C、短时、
+  充足助焊剂、别在通电时焊；接地烙铁+防静电手环。
+- 后续：换 ADCB -> 焊 24 LED/16 输入/8 输出插座/电位器推子 -> 恢复 eg_main 全功能测试。
+=== 2026-11-18 更换 ADCB 后复测：两片均正常 ===
+- 用户更换 ADCB/Retrig 那片 ADS8688 后重跑 ads_comm_test：
+  * ADCA: AUTO_SEQ=0xFF, echo=0x5A, rb=0x5A => REG-PASS
+  * ADCB: AUTO_SEQ=0xFF, echo=0x5A, rb=0x5A => REG-PASS
+- 两片 8 通道读数均稳定（未焊插座，输入悬空：CH 值分布在 3048x / 3862x 附近，属悬空正常）。
+- 备注：AUX 读数为 0 / 145（≈ -10.2V），说明 AUX 脚可能并未真正接到 GND 或悬空；AUX 不用于功能，暂不处理。
+- 结论：Ads 输入链路（SPI + 电源）已通；后续可注入 3V3/5V 到输入焊盘验证整条保护+采集链。
+=== 2026-11-18 阶段结论：DAC + 双 ADS8688 全部通信正常 ===
+- DAC8568：test_final 实测 8 路均 ≈9.96V（命令 0b0011 写并更新），链路 OK。
+- ADS8688 x2：写 AUTO_SEQ_EN=0x5A 读回 0x5A，两片均 REG-PASS（ADCB 换新后修复）。
+- 下一步：其余外设通信/连通性排查 —— TLC5947（写-only，无回读）、CD74HC4067（选通+ADC）、
+  电源与参考电压；新增 firmware/periph_test。
+=== 2026-11-18 periph_test：MUX 悬空读数 / TLC 静态检查 ===
+- 新增 firmware/periph_test（TLC 跑马写入 + MUX 16 通道扫描打印），已烧录。
+- MUX 实测：16 通道全部 4095（≈3.3V）。原因：推子/旋钮未焊，I0..I15 悬空，
+  CD74HC4067 输入悬空被拉向 VCC，属预期；不能用“点 3V3”验证，需点 GND 看下降。
+- 待测：拿 GND 线点某个 Ix 焊盘，对应通道应从 4095 掉到 ~0 => 选通+COMMON+R51 正常。
+- TLC5947 静态检查项：pin32 VCC=3.3V、pin1/EP=0V、pin31 IREF≈1.2V、pin2 BLANK≈0V（当前固件使能态）。
+  写-only 芯片无法回读，数据/时序正确性等 LED 焊上再验证。
+=== 2026-11-18 led_follow_test + 电位器扫描范围诊断 ===
+- 新增 firmware/led_follow_test：第 1 路输出 LED(LED1) + Gate LED(LED9) 跟随 I0 推子亮度；
+  每 10s 打印 16 路控制的 min..max（MM 行），用于判断电位器是否全程可动。
+- 实测 MM（推子/旋钮都来回扫过）：
+  I0 2653-3066, I1 3419-3659, I2 3557-3662, I3 4095-4095,
+  I4 3053-3070, I5 3647-3661, I6 3653-3661, I7 4095-4095,
+  I8 3059-3066, I9 3649-3658, I10 3647-3654, I11 4095-4095,
+  I12 3057-3064, I13 3649-3656, I14 3644-4095, I15 3769-4095。
+- 结论：全部控制摆幅只有 ~0.3~0.5V，完全不跟手；数值成三档 ~3060 / ~3655 / 4095。
+  => 不是单个焊点，是「共用模拟节点」问题：MUX 可能未供电/未使能，或 COMMON→R51→GP28 断开。
+- 怀疑：CD74HC4067 VCC(pin24)/GND(pin12)/E#(pin15) 有虚焊，或 R51(1k)/GP28 开路。
+- 待测（上电）：MUX pin24=3.3V、pin12=0V、pin15=0V、pin1(COMMON) 随选通电位器变化；
+  GP28(Pico pin34) 应与 COMMON 一致。若 COMMON 会变而 GP28 不变 => R51/GP28 开路。
+=== 2026-11-18 代码复核 + MUX 选择线分析（重大线索）===
+- 复核 led_follow_test / mux 选择逻辑：S0..S3=GP26/27/21/22 与网表一致，位序正确，A2=GP28 正确；
+  代码本身没问题。
+- 关键观测：16 路读数只随 (ch & 3) 变化（每 4 路完全相同：~3060 / ~3652 / ~4095），
+  即 S2、S3 对 MUX 毫无作用 => S2/S3 在 MUX 端被固定（最可能被短到 GND）。
+- Pico 物理脚位：pin27=GP21(S2)、pin28=GND、pin29=GP22(S3) —— S2/S3 正好夹着同一个 GND 脚！
+  与之前 GP18(pin24)/GND(pin23)、GP9(pin12)/GND(pin13) 是同一类桥接故障。
+- 另：所有电位器扫幅仅 ~0.3V、最小仍 ~2.5V，疑似共用模拟节点/电位器 GND 端也有问题，待 S2/S3 修复后复测。
+- 注意：S2/S3 若短到 GND，输出高会持续灌 ~60mA，需尽快处理。
+- 烧录时 Pico 突然从 USB 掉线（无 COM、无 RPI-RP2），需重新插拔/BOOTSEL。
+- 新增 firmware/mux_diag（FWD/REV/SLOW 三组扫描 + 选择脚回读 + A2 打印）备用。
+=== 2026-11-19 供电差异：外部 16pin 单独供电时 Pico 卡死；USB 供电正常 ===
+- 现象：仅外部 16pin 供电 -> Pico 疑似卡死；仅 Pico USB 供电 -> 正常。
+- 关键差异在于外部供电时才接入 +5V/+12V/-12V，故优先查这些轨是否漏到 +3V3 / VSYS 异常。
+- 待测（分别测 USB-only 与 PSU-only）：
+  Pico pin39 VSYS、pin36 3V3(OUT)、板载 +5V、+12V、-12V。
+  判读：若 PSU-only 时 3V3≈5V => +5V 与 +3V3 短路（立即断电，防损坏）；
+        若 VSYS≈5V 但 3V3≈0 => Pico 未运行/稳压器无输出；
+        若 VSYS≈0 => +5V 未到 VSYS。
+- 追加：若 USB+PSU 同时插正常、仅 PSU 卡死，则更像 VSYS 供电路径/回灌问题，而非硬短路。
+- 风险提示：不要长时间在 +3V3 被抬高的状态下通电。
+=== 2026-11-19 供电澄清：USB+PSU 各轨正常；PSU 在时会话无法进 BOOTSEL ===
+- USB+PSU 同时供电实测：USB 4.94V、VSYS 4.98V、3V3 3.3V、+5V 4.99V、±12V 正常 => 电源本身没问题。
+- 之前“Pico 掉线/卡死”实为：16pin PSU 接着时，BOOTSEL+RUN 无反应、不出 RPI-RP2 盘；
+  拔掉 PSU、仅 USB 供电才能进入下载模式。
+- 实际操作约定：刷机时先断开 16pin PSU，仅 USB 供电烧录，烧完再接 PSU 测试。
+- 待确认（PSU 接、USB 拔）：
+  1) Pico pin40 VBUS 应为 0V；若为 5V => 板子经 VSYS 反灌 USB 口，需查是否接错到 VBUS；
+  2) PSU-only 时 LED 是否正常（LED1/LED9 亮、亮度跟手）——确认 Pico 是否真的在运行。
+=== 2026-11-19 确认：+5V 倒灌到 Pico VBUS（pin39/pin40 桥接）===
+- 实测：仅 PSU 供电时，Pico pin40(VBUS) 与 pin39(VSYS) 都有电压；LED 无反应。
+- 设计上 +5V 只应接 VSYS(pin39)，VBUS(pin40) 只在插 USB 时带电。
+  现 VBUS 也带电 => pin39( VSYS ) 与 pin40( VBUS ) 之间存在桥接（相邻脚，和 pin23/24、pin27-29 同一类）。
+- 这正好解释“接 PSU 时进不了 BOOTSEL/不出 RPI-RP2”：PSU 的 5V 经 VBUS 直连 USB 口，
+  主机检测到反灌/异常后关闭端口 => 枚举失败。
+- 修复：断电，量 pin39↔pin40 应 MΩ；清桥后 PSU-only 时 VBUS 必须为 0V。
+- 风险：在反灌未修复前，不要同时接 PSU 和电脑 USB（可能损伤主机端口）。
+- LED 无反应的可能：Pico 停在 BOOTSEL（上一步被 1200bps touch 复位），需拔 PSU + USB 重新上电确认。
+- 刷机约定：先断 PSU，仅 USB。
+=== 2026-11-19 收工总结 / 明天继续 ===
+【已通过】
+- DAC8568：8 路 ≈9.96V（test_final）。
+- ADS8688 x2：通信 REG-PASS（换掉炸掉的 ADCB 后）；AUX 悬空不影响功能。
+- 包络引擎 + DAC 更新链路：env_selftest 实测状态机/输出正确。
+- TLC5947 + 24 LED：上电闪烁 -> 全灭 -> LED1/LED9 按读数点亮，帧格式/时序确认 OK。
+【待修】
+1) Pico pin39(VSYS)/pin40(VBUS) 桥接导致 +5V 反灌 VBUS：
+   - 现象：PSU-only 时 VBUS 带电、LED 无反应；接 PSU 时进不了 BOOTSEL、烧录失败。
+   - 处理：断电清 pin39/40 连锡；PSU-only 下 VBUS 必须 0V；修好前勿同时接 PSU 与电脑 USB。
+   - 用户判断这是 Pico QFN60 那边的老毛病。
+2) Pico pin27/28/29（GP21=S2、GND、GP22=S3）：S2/S3 疑似被短到中间 GND，
+   导致 MUX 读数只随 ch&3 变化（每 4 路重复）。
+3) 电位器/模拟链路：扫幅仅 ~0.3V、最小仍 ~2.5V，疑共用节点（MUX VCC/E#/COMMON->R51->GP28
+   或电位器 GND 端）有问题；待 2) 修好后复测 MM。
+【刷机约定】
+- 刷机前先拔 16pin PSU，仅 Pico USB；烧完再接回 PSU 测试。
+【现成固件（源码在 firmware/，部分 UF2 在 D:\dekstop mainstage）】
+- test_final.uf2       8 路满值 9.96V
+- env_selftest.uf2     软件 Gate 8 路 ADSR 自检
+- ads_comm_test        双 ADS 寄存器读写 REG-PASS 诊断
+- led_follow_test      单通道输出/Gate LED 跟随电位器 + MM 扫幅打印
+- mux_diag             FWD/REV/SLOW 三组扫描 + S 脚回读（已编译未烧）
+【明天第一步】
+- 清 pin39/40 桥 -> 仅 USB 上电确认 LED 正常 -> 烧 mux_diag -> 量 pin27/28/29
+  -> 修 S2/S3 -> 复测 led_follow MM 全 0..4095。

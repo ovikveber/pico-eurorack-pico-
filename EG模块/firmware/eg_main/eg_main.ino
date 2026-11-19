@@ -34,6 +34,8 @@ constexpr uint8_t PIN_MUX_ADC = A2;
 constexpr uint8_t NUM_ENV = 8;
 constexpr uint8_t NUM_LED = 24;
 
+constexpr uint8_t DAC_CMD_WR_UPDATE = 0x3;
+
 #define EG_DEBUG 1
 
 constexpr float TICK_HZ = 6000.0f;
@@ -100,33 +102,33 @@ static inline void pinW(uint8_t p, bool v) { if (v) sio_hw->gpio_set = (1u << p)
 static inline bool pinR(uint8_t p) { return (sio_hw->gpio_in >> p) & 1u; }
 static inline void tinyDelay() { for (volatile int k = 0; k < 4; ++k) __nop(); }
 
+static inline void dacPace() { for (volatile int k = 0; k < 6; ++k) __nop(); }
+
 static inline void dacFrame(uint32_t w) {
   sio_hw->gpio_clr = 1u << PIN_DAC_SYNC;
+  dacPace();
   for (int i = 31; i >= 0; --i) {
     if ((w >> i) & 1u) sio_hw->gpio_set = 1u << PIN_DAC_DIN; else sio_hw->gpio_clr = 1u << PIN_DAC_DIN;
+    dacPace();
     sio_hw->gpio_set = 1u << PIN_DAC_SCLK;
+    dacPace();
     sio_hw->gpio_clr = 1u << PIN_DAC_SCLK;
+    dacPace();
   }
   sio_hw->gpio_set = 1u << PIN_DAC_SYNC;
+  dacPace();
 }
 
 static inline void dacBuffer(uint8_t ch, uint16_t code) {
-  dacFrame(((uint32_t)(ch & 7) << 20) | ((uint32_t)code << 4));
-}
-
-static inline void dacLatch() {
-  sio_hw->gpio_clr = 1u << PIN_DAC_LDAC;
-  sio_hw->gpio_set = 1u << PIN_DAC_LDAC;
+  dacFrame(((uint32_t)DAC_CMD_WR_UPDATE << 24) | ((uint32_t)(ch & 7) << 20) | ((uint32_t)code << 4));
 }
 
 static void dacAll(uint16_t code) {
   for (uint8_t c = 0; c < NUM_ENV; ++c) dacBuffer(c, code);
-  dacLatch();
 }
 
 static inline void dacWriteAll() {
   for (uint8_t c = 0; c < NUM_ENV; ++c) dacBuffer(c, gDacCode[c]);
-  dacLatch();
 }
 
 static void tlcWrite() {
